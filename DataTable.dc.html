@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:100%;border:1px solid #E4E8EF;border-radius:10px;background:#FFFFFF;overflow:hidden">
+  <div style="width:100%;overflow-x:auto">
+    <div style="display:table;width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;color:#18202E">
+      <div style="display:table-row">
+        <sc-for list="{{ table.cols }}" as="c" hint-placeholder-count="6">
+          <div onClick="{{ c.onClick }}" title="{{ c.tip }}" style="display:table-cell;text-align:{{ c.align }};padding:10px 12px;background:#F6F8FB;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5B6678;border-bottom:1px solid #E4E8EF;white-space:nowrap;cursor:{{ c.cursor }};user-select:none">{{ c.label }}<span style="color:#1A3170;margin-left:4px;font-size:10px">{{ c.arrow }}</span></div>
+        </sc-for>
+      </div>
+      <sc-for list="{{ table.rows }}" as="row" hint-placeholder-count="5">
+        <div onClick="{{ row.onClick }}" style="display:table-row;cursor:{{ row.cursor }};background:{{ row.bg }}" style-hover="background:#F4F7FC">
+          <sc-for list="{{ row.cells }}" as="cell">
+            <div title="{{ cell.tip }}" style="display:table-cell;text-align:{{ cell.align }};padding:9px 12px;border-bottom:1px solid #EEF1F5;vertical-align:middle;color:{{ cell.color }};font-weight:{{ cell.weight }};white-space:{{ cell.ws }};max-width:{{ cell.maxw }};overflow:hidden;text-overflow:ellipsis">
+              <sc-if value="{{ cell.plain }}" hint-placeholder-val="{{ true }}">{{ cell.v }}</sc-if>
+              <sc-if value="{{ cell.badge }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;background:{{ cell.badge.bg }};color:{{ cell.badge.fg }}">{{ cell.badge.text }}</span></sc-if>
+              <sc-if value="{{ cell.check }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;width:17px;height:17px;border-radius:4px;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#FFFFFF;border:1.5px solid {{ cell.check.bd }};background:{{ cell.check.bg }}">{{ cell.check.mark }}</span></sc-if>
+              <sc-if value="{{ cell.actions }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap"><sc-for list="{{ cell.actions }}" as="a"><button onClick="{{ a.onClick }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #D5DBE5;background:#FFFFFF;color:{{ a.color }};font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:#F1F4F9">{{ a.label }}</button></sc-for></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <sc-if value="{{ table.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:28px;text-align:center;color:#8A94A6;font-size:13px">{{ table.emptyText }}</div></sc-if>
+  <sc-if value="{{ table.pager }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid #EEF1F5;background:#FBFCFE;font-size:12.5px;color:#5B6678">
+      <div>{{ table.pager.text }}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span>{{ table.pager.page }}</span>
+        <button onClick="{{ table.pager.prev }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #D5DBE5;background:#FFFFFF;color:#18202E;font-family:inherit;font-size:12px;cursor:pointer;opacity:{{ table.pager.prevOp }}">‹ Prev</button>
+        <button onClick="{{ table.pager.next }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #D5DBE5;background:#FFFFFF;color:#18202E;font-family:inherit;font-size:12px;cursor:pointer;opacity:{{ table.pager.nextOp }}">Next ›</button>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:300},&quot;table&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

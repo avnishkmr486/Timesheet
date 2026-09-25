@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Timesheet Management</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+html,body{margin:0;padding:0;background:#F3F5F9;color:#18202E;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#1A3170;text-decoration:none}
+a:hover{color:#0F1F4D;text-decoration:underline}
+input,select,textarea,button{font-family:inherit}
+</style>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="./ts-core.js"></script>
+</helmet>
+
+<sc-if value="{{ isLoading }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#5B6678;font-size:14px">
+    <div style="width:40px;height:40px;border-radius:10px;background:#132250;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">TM</div>
+    <div>{{ loadMsg }}</div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh;display:flex;flex-wrap:wrap;background:#F3F5F9">
+    <div style="flex:1 1 420px;min-height:300px;background:#101D3B;color:#FFFFFF;padding:48px;display:flex;flex-direction:column;justify-content:space-between;gap:32px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="./logo.png" alt="" style="width:34px;height:34px;flex:none">
+        <div style="font-weight:600;font-size:15px">Timesheet Management</div>
+      </div>
+      <div style="max-width:460px">
+        <div style="font-size:34px;line-height:1.15;font-weight:600;letter-spacing:-0.01em;text-wrap:pretty">Weekly timesheets, consolidated into decisions.</div>
+        <div style="margin-top:14px;font-size:15px;line-height:1.55;color:#AFC0E2;text-wrap:pretty">Upload each week's file, reconcile hours to the source, and see effort by employee, task, client and team.</div>
+      </div>
+      <div style="font-size:12px;color:#7F92BA">All data is stored locally in this browser (IndexedDB).</div>
+    </div>
+    <div style="flex:1 1 420px;display:flex;align-items:center;justify-content:center;padding:40px">
+      <div style="width:100%;max-width:360px">
+        <img src="./logo.png" alt="" style="width:56px;height:56px;margin-bottom:16px">
+        <sc-if value="{{ pwMode }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:24px;font-weight:600">Change password</div>
+          <div style="font-size:13px;color:#5B6678;margin-top:4px">Enter your username and current password</div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:28px">
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Username
+              <input value="{{ pwUser }}" onChange="{{ on.pwUser }}" style="height:42px;padding:0 12px;border:1px solid #CBD3E0;border-radius:8px;font-size:14px;font-weight:400;color:#18202E;background:#FFFFFF;outline:none">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Current password
+              <input type="password" value="{{ pwOld }}" onChange="{{ on.pwOld }}" onKeyDown="{{ on.pwKey }}" style="height:42px;padding:0 12px;border:1px solid #CBD3E0;border-radius:8px;font-size:14px;font-weight:400;color:#18202E;background:#FFFFFF;outline:none">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">New password
+              <input type="password" value="{{ pwNew }}" onChange="{{ on.pwNew }}" onKeyDown="{{ on.pwKey }}" style="height:42px;padding:0 12px;border:1px solid #CBD3E0;border-radius:8px;font-size:14px;font-weight:400;color:#18202E;background:#FFFFFF;outline:none">
+            </label>
+            <sc-if value="{{ pwErr }}"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#FBE9E4;color:#A2361F;font-size:13px">{{ pwErr }}</div></sc-if>
+            <sc-if value="{{ pwOk }}"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#E3F3EA;color:#1D6B45;font-size:13px">{{ pwOk }}</div></sc-if>
+            <button onClick="{{ on.doChangePw }}" style="height:42px;border-radius:8px;border:0;background:#1A3170;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#132659">Update password</button>
+            <a href="#" onClick="{{ on.backToLogin }}" style="font-size:12.5px;text-align:center">Back to sign in</a>
+          </div>
+        </sc-if>
+        <sc-if value="{{ loginMode }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size:24px;font-weight:600">Sign in</div>
+        <div style="font-size:13px;color:#5B6678;margin-top:4px">Timesheet Management</div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:28px">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Username
+            <input value="{{ lu }}" onChange="{{ on.lu }}" onKeyDown="{{ on.loginKey }}" autocomplete="username" style="height:42px;padding:0 12px;border:1px solid #CBD3E0;border-radius:8px;font-size:14px;font-weight:400;color:#18202E;background:#FFFFFF;outline:none" style-focus="border-color:#1A3170;box-shadow:0 0 0 3px rgba(26,49,112,0.12)">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Password
+            <input type="password" value="{{ lp }}" onChange="{{ on.lp }}" onKeyDown="{{ on.loginKey }}" autocomplete="current-password" style="height:42px;padding:0 12px;border:1px solid #CBD3E0;border-radius:8px;font-size:14px;font-weight:400;color:#18202E;background:#FFFFFF;outline:none" style-focus="border-color:#1A3170;box-shadow:0 0 0 3px rgba(26,49,112,0.12)">
+          </label>
+          <sc-if value="{{ lerr }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#FBE9E4;color:#A2361F;font-size:13px"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">error</span>{{ lerr }}</div>
+          </sc-if>
+          <button onClick="{{ on.login }}" style="height:42px;border-radius:8px;border:0;background:#1A3170;color:#FFFFFF;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px" style-hover="background:#132659">Login</button>
+        </div>
+        <div style="margin-top:14px;text-align:right"><a href="#" onClick="{{ on.showChangePw }}" style="font-size:12.5px">Change password</a></div>
+        <div style="margin-top:18px;font-size:12px;color:#8A94A6;line-height:1.5">First run: sign in with admin / admin, then change the credentials in Settings.</div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;min-height:100vh;background:#F3F5F9">
+  <aside onMouseEnter="{{ on.sideEnter }}" onMouseLeave="{{ on.sideLeave }}" style="width:{{ sideW }};flex:none;background:#101D3B;color:#C9D3E6;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;transition:width 0.18s ease;overflow:hidden;z-index:5">
+    <div style="height:60px;display:flex;align-items:center;gap:10px;padding:0 17px;border-bottom:1px solid rgba(255,255,255,0.07);flex:none">
+      <img src="./logo.png" alt="" style="width:34px;height:34px;flex:none">
+      <sc-if value="{{ side }}"><div style="font-weight:600;font-size:14.5px;color:#FFFFFF;white-space:nowrap">Timesheet Management</div></sc-if>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:2px">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="10">
+        <button onClick="{{ n.onClick }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" style="position:relative;display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border:0;border-radius:8px;background:{{ n.bg }};color:{{ n.fg }};font-size:13.5px;font-weight:500;cursor:pointer;text-align:left;white-space:nowrap;width:100%" style-hover="background:#1A2A52;color:#FFFFFF">
+          <span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1;flex:none;width:20px">{{ n.icon }}</span>
+          <sc-if value="{{ n.showLabel }}"><span>{{ n.label }}</span></sc-if>
+          <sc-if value="{{ n.tip }}"><span style="position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:#101D3B;color:#FFFFFF;padding:6px 10px;border-radius:6px;font-size:12.5px;font-weight:500;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,0.28);z-index:30">{{ n.label }}</span></sc-if>
+        </button>
+      </sc-for>
+    </nav>
+    <div style="border-top:1px solid rgba(255,255,255,0.07);padding:12px 10px;display:flex;flex-direction:column;gap:6px;flex:none">
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 6px">
+        <div style="width:32px;height:32px;flex:none;border-radius:50%;background:#26396B;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px">{{ me.initial }}</div>
+        <sc-if value="{{ side }}"><div style="min-width:0"><div style="font-size:13px;font-weight:600;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ me.name }}</div><div style="font-size:11.5px;color:#8FA2CA">{{ me.role }}</div></div></sc-if>
+      </div>
+      <button onClick="{{ on.logout }}" title="Log out" style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#AFC0E2;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="background:#1A2A52;color:#FFFFFF"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1;width:20px">logout</span><sc-if value="{{ side }}"><span>Log out</span></sc-if></button>
+    </div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header style="height:60px;flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;background:#FFFFFF;border-bottom:1px solid #E4E8EF;position:sticky;top:0;z-index:4">
+      <button onClick="{{ on.toggleSide }}" title="Toggle sidebar" style="width:34px;height:34px;flex:none;border-radius:8px;border:1px solid #E4E8EF;background:#FFFFFF;color:#3B4557;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#F3F5F9"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1">menu</span></button>
+      <div style="min-width:0;flex:1 1 auto">
+        <div style="font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+        <div style="font-size:12px;color:#6B7588;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ subtitle }}</div>
+      </div>
+      <div style="position:relative;flex:0 1 340px;min-width:160px">
+        <span style="position:absolute;left:10px;top:9px;font-family:'Material Symbols Outlined';font-size:18px;line-height:1;color:#8A94A6">search</span>
+        <input value="{{ search }}" onChange="{{ on.search }}" onFocus="{{ on.sFocus }}" onBlur="{{ on.sBlur }}" placeholder="Search employee, client, task, ticket…" style="width:100%;height:36px;padding:0 10px 0 34px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;color:#18202E;background:#F8F9FC;outline:none" style-focus="border-color:#1A3170;background:#FFFFFF">
+        <sc-if value="{{ sres.open }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:42px;left:0;right:0;min-width:320px;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:10px;box-shadow:0 12px 32px rgba(16,24,40,0.14);padding:6px;max-height:420px;overflow-y:auto;z-index:20">
+            <sc-for list="{{ sres.items }}" as="r">
+              <div onMouseDown="{{ r.onClick }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer" style-hover="background:#F1F4F9">
+                <span style="flex:none;width:78px;font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">{{ r.group }}</span>
+                <div style="min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.label }}</div><div style="font-size:11.5px;color:#8A94A6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.sub }}</div></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ sres.none }}"><div style="padding:12px;font-size:13px;color:#8A94A6">No matches.</div></sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ showFilterBtn }}">
+        <button onClick="{{ on.toggleFilters }}" title="Filters" style="width:36px;height:36px;flex:none;border-radius:8px;border:1px solid {{ filterBd }};background:{{ filterBg }};color:{{ filterFg }};cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#F3F5F9"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1">filter_alt</span></button>
+      </sc-if>
+      <sc-if value="{{ admin }}">
+        <button onClick="{{ on.openUpload }}" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none" style-hover="background:#132659"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">upload</span>Upload Timesheet</button>
+        <button onClick="{{ on.goSettings }}" title="Settings" style="width:36px;height:36px;flex:none;border-radius:8px;border:1px solid #E4E8EF;background:#FFFFFF;color:#3B4557;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#F3F5F9"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1">settings</span></button>
+      </sc-if>
+    </header>
+
+    <sc-if value="{{ showFilters }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 22px;background:#FFFFFF;border-bottom:1px solid #E4E8EF;display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px">
+        <sc-for list="{{ filters }}" as="fl" hint-placeholder-count="8">
+          <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 140px;min-width:130px;max-width:230px">
+            <span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">{{ fl.label }}</span>
+            {{ fl.select }}
+          </label>
+        </sc-for>
+        <sc-if value="{{ isCustom }}">
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">From</span><input type="date" value="{{ fd.from }}" onChange="{{ on.from }}" style="height:34px;padding:0 8px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;color:#18202E"></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">To</span><input type="date" value="{{ fd.to }}" onChange="{{ on.to }}" style="height:34px;padding:0 8px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;color:#18202E"></label>
+        </sc-if>
+        <sc-if value="{{ uploadChip }}">
+          <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border-radius:999px;background:#E5ECFA;color:#1F3F8F;font-size:12.5px;font-weight:500">Upload: {{ uploadChip }}<button onClick="{{ on.clearUpload }}" style="width:22px;height:22px;border:0;border-radius:50%;background:transparent;color:#1F3F8F;cursor:pointer;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Outlined';font-size:16px;line-height:1">close</span></button></div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <main style="flex:1;padding:22px;min-width:0">
+      <sc-if value="{{ filteredEmpty }}">
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:#FDF3E7;color:#9A5B12;font-size:13px"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1">filter_alt_off</span>No records match the current filters. Adjust or reset the filters above.</div>
+      </sc-if>
+
+      <sc-if value="{{ showEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:680px;margin:40px auto;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:14px;padding:40px;text-align:center">
+          <div style="width:52px;height:52px;margin:0 auto;border-radius:12px;background:#E5ECFA;color:#1A3170;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Outlined';font-size:28px;line-height:1">upload_file</span></div>
+          <div style="font-size:20px;font-weight:600;margin-top:16px">No timesheet data yet</div>
+          <div style="font-size:14px;color:#5B6678;margin-top:8px;line-height:1.55;text-wrap:pretty">Upload a weekly timesheet (.xlsx, .xls or .csv). Columns are detected by name, validated, and stored so every week stays available for comparison.</div>
+          <sc-if value="{{ admin }}">
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">
+              <button onClick="{{ on.openUpload }}" style="display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13.5px;font-weight:600;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">upload</span>Upload Timesheet</button>
+              <button onClick="{{ on.sampleDirect }}" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13.5px;font-weight:500;cursor:pointer">Try with a generated sample week</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ viewer }}"><div style="margin-top:18px;font-size:13px;color:#8A94A6">Ask an Admin to upload a timesheet.</div></sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ aSw.show }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">View</span>
+          <div role="radiogroup" style="display:flex;padding:3px;border-radius:10px;background:#E8ECF2;gap:2px;flex-wrap:wrap">
+            <sc-for list="{{ aSw.opts }}" as="o"><button role="radio" onClick="{{ o.onClick }}" style="display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:0;border-radius:8px;background:{{ o.bg }};color:{{ o.fg }};font-size:13px;font-weight:600;cursor:pointer;box-shadow:{{ o.sh }}"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1;color:{{ o.ic }}">{{ o.icon }}</span>{{ o.label }}</button></sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap">
+            <span style="font-size:12px;color:#6B7588">{{ aSw.unitNote }}</span>
+            <span style="font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">Show</span>
+            <div style="display:flex;padding:3px;border-radius:999px;background:#FFFFFF;border:1px solid #D5DBE5;gap:2px">
+              <sc-for list="{{ aSw.units }}" as="u"><button onClick="{{ u.onClick }}" style="height:30px;padding:0 14px;border:0;border-radius:999px;background:{{ u.bg }};color:{{ u.fg }};font-size:12.5px;font-weight:600;cursor:pointer">{{ u.label }}</button></sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= DASHBOARD ================= -->
+      <sc-if value="{{ v.dashboard }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <sc-for list="{{ dash.kpiMain }}" as="k" hint-placeholder-count="4">
+              <div title="{{ k.tip }}" style="background:{{ k.bg }};border:1px solid {{ k.bd }};border-radius:12px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span style="font-size:11.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:{{ k.fg }}">{{ k.label }}</span><span style="font-family:'Material Symbols Outlined';font-size:16px;line-height:1;color:#A3ACBB">info</span></div>
+                <div style="font-size:30px;font-weight:600;letter-spacing:-0.01em;color:#101D3B;font-variant-numeric:tabular-nums">{{ k.value }}</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5B6678;min-height:20px">
+                  <sc-if value="{{ k.badge }}"><span style="padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ k.badge.bg }};color:{{ k.badge.fg }}">{{ k.badge.text }}</span></sc-if>
+                  <span>{{ k.sub }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:10px">
+            <sc-for list="{{ dash.kpiSub }}" as="k" hint-placeholder-count="12">
+              <div title="{{ k.tip }}" style="background:{{ k.bg }};border:1px solid {{ k.bd }};border-radius:12px;padding:13px 15px;display:flex;flex-direction:column;gap:3px">
+                <div style="font-size:12px;color:{{ k.fg }};font-weight:600">{{ k.label }}</div>
+                <div style="font-size:20px;font-weight:600;color:#18202E;font-variant-numeric:tabular-nums">{{ k.value }}</div>
+                <div style="font-size:11.5px;color:#4A5568;min-height:14px">{{ k.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#132250;border-radius:14px;padding:22px 24px;color:#FFFFFF;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Material Symbols Outlined';font-size:22px;line-height:1;color:#C9B8FF">auto_awesome</span><span style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C9D6F2">AI Summary · {{ dash.period }}</span></div>
+              <div title="{{ dash.reconTip }}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:{{ dash.reconBg }};color:{{ dash.reconFg }};font-size:12.5px;font-weight:500;max-width:360px"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">{{ dash.reconIcon }}</span>{{ dash.reconText }}</div>
+            </div>
+            <div style="font-size:16px;line-height:1.6;text-wrap:pretty;color:#F3F6FC">{{ dash.summary }}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 28px">
+              <sc-for list="{{ dash.aiPoints }}" as="p" hint-placeholder-count="4"><div style="display:flex;gap:10px;font-size:13.5px;line-height:1.5;color:#D5DEF2"><span style="flex:none;width:6px;height:6px;border-radius:50%;background:#8FD1B0;margin-top:8px"></span><span style="text-wrap:pretty">{{ p.text }}</span></div></sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ dash.hasWow }}">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:18px">
+              <div style="flex:none"><div style="font-size:14px;font-weight:600">Week over week</div><div style="font-size:12px;color:#8A94A6">{{ dash.wowLabel }}</div></div>
+              <div style="display:flex;flex-wrap:wrap;gap:22px;flex:1">
+                <sc-for list="{{ dash.wow }}" as="w">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:11.5px;color:#6B7588">{{ w.label }}</span><span style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ w.cur }} <span style="font-size:12px;font-weight:600;color:{{ w.color }}">{{ w.delta }}</span></span></div>
+                </sc-for>
+              </div>
+              <button onClick="{{ on.goCompare }}" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:12.5px;font-weight:500;cursor:pointer">Full comparison →</button>
+            </div>
+          </sc-if>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px">
+            <div style="grid-column:1/-1;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                <div><div style="font-size:14px;font-weight:600">Daily trend</div><div style="font-size:12px;color:#8A94A6">Per calendar day in the selected period</div></div>
+                <div style="display:flex;padding:3px;border-radius:8px;background:#F1F3F7;gap:2px">
+                  <sc-for list="{{ dash.trendOpts }}" as="t"><button onClick="{{ t.onClick }}" style="height:28px;padding:0 12px;border:0;border-radius:6px;background:{{ t.bg }};color:{{ t.fg }};font-size:12.5px;font-weight:500;cursor:pointer;box-shadow:{{ t.sh }}">{{ t.label }}</button></sc-for>
+                </div>
+              </div>
+              <div style="position:relative;height:260px"><canvas ref="{{ refs.dTrend }}"></canvas></div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px">
+              <div style="font-size:14px;font-weight:600">Work mix</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Share of hours by category</div>
+              <div style="position:relative;height:260px"><canvas ref="{{ refs.dMix }}"></canvas></div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px">
+              <div style="font-size:14px;font-weight:600">Weekly trend</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Hours per week, stacked by category</div>
+              <div style="position:relative;height:260px"><canvas ref="{{ refs.dWeek }}"></canvas></div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px">
+              <div style="font-size:14px;font-weight:600">Hours by client</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Top 10 clients</div>
+              <div style="position:relative;height:280px"><canvas ref="{{ refs.dClient }}"></canvas></div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div><div style="font-size:14px;font-weight:600">Insights</div><div style="font-size:12px;color:#8A94A6">Generated from the selected data · click to explore</div></div>
+              <sc-for list="{{ dash.insights }}" as="i" hint-placeholder-count="3">
+                <div onClick="{{ i.onClick }}" style="display:flex;gap:12px;padding:11px 13px;border-radius:10px;background:{{ i.bg }};cursor:pointer" style-hover="filter:brightness(0.97)">
+                  <span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1;color:{{ i.fg }};flex:none">{{ i.icon }}</span>
+                  <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:#18202E;text-wrap:pretty">{{ i.title }}</div><div style="font-size:12.5px;color:#4A5568;margin-top:2px;line-height:1.45;text-wrap:pretty">{{ i.text }}</div></div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ dash.noInsights }}"><div style="font-size:13px;color:#8A94A6">Nothing notable in this selection.</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= BY EMPLOYEE ================= -->
+      <sc-if value="{{ v.employees }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <input value="{{ emp.q }}" onChange="{{ on.empQ }}" placeholder="Filter employees or teams…" style="height:36px;width:280px;max-width:100%;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;background:#FFFFFF;outline:none">
+            <div style="display:flex;gap:8px"><button onClick="{{ dl.emp }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.empCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+          </div>
+          <dc-import name="DataTable" table="{{ emp.table }}" hint-size="100%,360px"></dc-import>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600">Hours by employee</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Total hours logged</div><div style="position:relative;height:{{ emp.chartH }}"><canvas ref="{{ refs.eHours }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600">Story points: actual vs expected</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">{{ emp.spSub }}</div><div style="position:relative;height:{{ emp.chartH }}"><canvas ref="{{ refs.eSP }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600">Employee work mix</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Meetings vs project/task work (hours)</div><div style="position:relative;height:{{ emp.chartH }}"><canvas ref="{{ refs.eMix }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600">Employee utilization</div><div style="font-size:12px;color:#8A94A6;margin-bottom:10px">Actual hours vs expected hours</div><div style="position:relative;height:{{ emp.chartH }}"><canvas ref="{{ refs.eUtil }}"></canvas></div></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= EMPLOYEE DETAIL ================= -->
+      <sc-if value="{{ v.empDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:14px">
+              <button onClick="{{ on.backEmp }}" style="display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:12.5px;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">arrow_back</span>By Employee</button>
+              <div><div style="font-size:22px;font-weight:600">{{ ed.name }}</div></div>
+            </div>
+            <sc-if value="{{ ed.found }}"><div style="display:flex;gap:8px"><button onClick="{{ dl.ed }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.edCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div></sc-if>
+          </div>
+          <sc-if value="{{ ed.missing }}"><div style="padding:24px;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;color:#5B6678;font-size:13.5px">This employee has no entries in the current filter selection.</div></sc-if>
+          <sc-if value="{{ ed.found }}">
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ ed.info }}" as="i"><div style="display:flex;gap:6px;align-items:center;height:30px;padding:0 12px;border-radius:999px;background:#FFFFFF;border:1px solid #E4E8EF;font-size:12.5px"><span style="color:#6B7588">{{ i.k }}</span><span style="font-weight:600">{{ i.v }}</span></div></sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+              <sc-for list="{{ ed.kpis }}" as="k">
+                <div title="{{ k.tip }}" style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:13px 15px;display:flex;flex-direction:column;gap:4px">
+                  <div style="font-size:12px;color:#5B6678;font-weight:500">{{ k.label }}</div>
+                  <div style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">{{ k.value }}</div>
+                  <sc-if value="{{ k.badge }}"><span style="align-self:flex-start;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ k.badge.bg }};color:{{ k.badge.fg }}">{{ k.badge.text }}</span></sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px">
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Client distribution</div><div style="position:relative;height:260px"><canvas ref="{{ refs.edClient }}"></canvas></div></div>
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Task distribution (top 10)</div><div style="position:relative;height:260px"><canvas ref="{{ refs.edTask }}"></canvas></div></div>
+              <div style="grid-column:1/-1;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Daily trend</div><div style="position:relative;height:240px"><canvas ref="{{ refs.edDaily }}"></canvas></div></div>
+            </div>
+            <div style="font-size:15px;font-weight:600">Tasks</div>
+            <dc-import name="DataTable" table="{{ ed.taskTable }}" hint-size="100%,240px"></dc-import>
+            <div style="font-size:15px;font-weight:600">Raw entries</div>
+            <dc-import name="DataTable" table="{{ ed.rawTable }}" hint-size="100%,300px"></dc-import>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ================= BY TASK ================= -->
+      <sc-if value="{{ v.tasks }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <input value="{{ tk.q }}" onChange="{{ on.taskQ }}" placeholder="Filter tasks or clients…" style="height:36px;width:280px;max-width:100%;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;background:#FFFFFF;outline:none">
+              <button onClick="{{ on.hideMeet }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid {{ tk.hideBd }};background:{{ tk.hideBg }};color:{{ tk.hideFg }};font-size:12.5px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:16px;line-height:1">{{ tk.hideIcon }}</span>Hide meetings &amp; leave</button>
+              <span style="font-size:12.5px;color:#6B7588">{{ tk.count }}</span>
+            </div>
+            <div style="display:flex;gap:8px"><button onClick="{{ dl.task }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.taskCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:{{ tk.reconBg }};color:{{ tk.reconFg }};font-size:12.5px"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">{{ tk.reconIcon }}</span>{{ tk.reconText }}</div>
+          <dc-import name="DataTable" table="{{ tk.table }}" hint-size="100%,480px"></dc-import>
+          <div style="font-size:12px;color:#8A94A6;line-height:1.5">Story Points = Total Hours ÷ {{ tk.hps }}. Entries sharing a ticket ID (e.g. OPSSD-11860) are consolidated automatically; identical descriptions are grouped per client. Internal and client meetings are consolidated into single rows. Click a task to see contributors and raw entries.</div>
+        </div>
+      </sc-if>
+
+      <!-- ================= TASK DETAIL ================= -->
+      <sc-if value="{{ v.taskDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:14px;min-width:0">
+              <button onClick="{{ on.backTask }}" style="display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:12.5px;cursor:pointer;flex:none"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">arrow_back</span>By Task</button>
+              <div style="font-size:22px;font-weight:600;min-width:0;text-wrap:pretty">{{ td.name }}</div>
+            </div>
+            <sc-if value="{{ td.found }}"><div style="display:flex;gap:8px"><button onClick="{{ dl.td }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.tdCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div></sc-if>
+          </div>
+          <sc-if value="{{ td.missing }}"><div style="padding:24px;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;color:#5B6678;font-size:13.5px">This task no longer exists (it may have been merged or its upload deleted).</div></sc-if>
+          <sc-if value="{{ td.found }}">
+            <sc-if value="{{ td.allNote }}"><div style="padding:10px 14px;border-radius:10px;background:#EAF0FA;color:#1F3F8F;font-size:12.5px">No entries for this task in the current filters — showing all periods.</div></sc-if>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ td.info }}" as="i"><div style="display:flex;gap:6px;align-items:center;min-height:30px;padding:4px 12px;border-radius:999px;background:#FFFFFF;border:1px solid #E4E8EF;font-size:12.5px"><span style="color:#6B7588">{{ i.k }}</span><span style="font-weight:600">{{ i.v }}</span></div></sc-for>
+              <sc-if value="{{ td.canUndo }}"><button onClick="{{ td.undo }}" style="height:30px;padding:0 12px;border-radius:999px;border:1px solid #D5DBE5;background:#FFFFFF;color:#A2361F;font-size:12.5px;font-weight:500;cursor:pointer">Undo merge</button></sc-if>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+              <sc-for list="{{ td.kpis }}" as="k"><div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:13px 15px"><div style="font-size:12px;color:#5B6678;font-weight:500">{{ k.label }}</div><div style="font-size:20px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums">{{ k.value }}</div></div></sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;align-items:start">
+              <div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:600">Employee contribution</div><dc-import name="DataTable" table="{{ td.contrib }}" hint-size="100%,220px"></dc-import></div>
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Daily effort</div><div style="position:relative;height:260px"><canvas ref="{{ refs.tdDaily }}"></canvas></div></div>
+            </div>
+            <sc-if value="{{ td.hasVariants }}">
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:14px 16px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px">Source descriptions consolidated into this task</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ td.variants }}" as="d"><span style="padding:4px 10px;border-radius:6px;background:#F1F3F7;font-size:12.5px;color:#3B4557">{{ d.text }} <span style="color:#8A94A6">×{{ d.n }}</span></span></sc-for></div>
+              </div>
+            </sc-if>
+            <div style="font-size:15px;font-weight:600">Raw entries</div>
+            <dc-import name="DataTable" table="{{ td.raw }}" hint-size="100%,300px"></dc-import>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ================= BY CLIENT ================= -->
+      <sc-if value="{{ v.clients }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="font-size:12.5px;color:#6B7588">Click a client to open its tasks.</div>
+            <div style="display:flex;gap:8px"><button onClick="{{ dl.client }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.clientCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+          </div>
+          <dc-import name="DataTable" table="{{ cl.table }}" hint-size="100%,300px"></dc-import>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Hours by client</div><div style="position:relative;height:{{ cl.chartH }}"><canvas ref="{{ refs.cHours }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Story points by client</div><div style="position:relative;height:{{ cl.chartH }}"><canvas ref="{{ refs.cSP }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Employee distribution by client</div><div style="position:relative;height:{{ cl.chartH2 }}"><canvas ref="{{ refs.cEmp }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Task distribution by client</div><div style="position:relative;height:{{ cl.chartH2 }}"><canvas ref="{{ refs.cTask }}"></canvas></div></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= BY TEAM ================= -->
+      <sc-if value="{{ v.teams }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="font-size:12.5px;color:#6B7588">Click a team to see its employees.</div>
+            <div style="display:flex;gap:8px"><button onClick="{{ dl.team }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.teamCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+          </div>
+          <dc-import name="DataTable" table="{{ tm.table }}" hint-size="100%,260px"></dc-import>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Hours by team</div><div style="position:relative;height:280px"><canvas ref="{{ refs.tHours }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Story points by team</div><div style="position:relative;height:280px"><canvas ref="{{ refs.tSP }}"></canvas></div></div>
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Team utilization</div><div style="position:relative;height:280px"><canvas ref="{{ refs.tUtil }}"></canvas></div></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= COMPARE ================= -->
+      <sc-if value="{{ v.compare }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <sc-if value="{{ cmp.few }}"><div style="padding:24px;background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;color:#5B6678;font-size:13.5px;line-height:1.55">Week-over-week comparison needs at least two weeks of data. Upload another week's timesheet — earlier uploads are kept.</div></sc-if>
+          <sc-if value="{{ cmp.ok }}">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                <label style="display:flex;flex-direction:column;gap:4px;width:250px"><span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">Previous week</span>{{ cmp.selA }}</label>
+                <span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:34px;color:#8A94A6">arrow_forward</span>
+                <label style="display:flex;flex-direction:column;gap:4px;width:250px"><span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">Current week</span>{{ cmp.selB }}</label>
+              </div>
+              <div style="display:flex;gap:8px"><button onClick="{{ dl.cmp }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.cmpCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+            </div>
+            <div style="font-size:12px;color:#8A94A6">Team, employee, client and other filters from the filter bar still apply; the period filter is replaced by the two weeks above.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;align-items:start">
+              <div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:600">Team metrics</div><dc-import name="DataTable" table="{{ cmp.metrics }}" hint-size="100%,380px"></dc-import></div>
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Hours by employee</div><div style="position:relative;height:{{ cmp.chartH }}"><canvas ref="{{ refs.cmpEmp }}"></canvas></div></div>
+            </div>
+            <div style="font-size:15px;font-weight:600">Employees</div>
+            <dc-import name="DataTable" table="{{ cmp.emps }}" hint-size="100%,300px"></dc-import>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:14px;align-items:start">
+              <div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:600">Clients</div><dc-import name="DataTable" table="{{ cmp.clients }}" hint-size="100%,240px"></dc-import></div>
+              <div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:600">Tasks with the largest change</div><dc-import name="DataTable" table="{{ cmp.tasks }}" hint-size="100%,240px"></dc-import></div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ================= DETAILED DATA ================= -->
+      <sc-if value="{{ v.detail }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <input value="{{ det.q }}" onChange="{{ on.detQ }}" placeholder="Search description, employee, client, ticket…" style="height:36px;width:320px;max-width:100%;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;background:#FFFFFF;outline:none">
+              <span style="font-size:12.5px;color:#6B7588">{{ det.summary }}</span>
+            </div>
+            <div style="display:flex;gap:8px"><button onClick="{{ dl.raw }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">download</span>Download Excel</button><button onClick="{{ dl.rawCsv }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;font-weight:500;cursor:pointer">CSV</button></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <span style="font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588;margin-right:4px">Columns</span>
+            <sc-for list="{{ det.chips }}" as="c"><button onClick="{{ c.onClick }}" style="height:26px;padding:0 10px;border-radius:999px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-size:12px;cursor:pointer">{{ c.label }}</button></sc-for>
+          </div>
+          <dc-import name="DataTable" table="{{ det.table }}" hint-size="100%,600px"></dc-import>
+        </div>
+      </sc-if>
+
+      <!-- ================= UPLOAD HISTORY ================= -->
+      <sc-if value="{{ v.history }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:13px;color:#5B6678;line-height:1.5;max-width:900px">Every upload is kept as its own dataset — new files never overwrite earlier weeks. <b>Reopen</b> scopes the dashboard to one upload; <b>Download</b> exports the original rows exactly as uploaded.</div>
+          <dc-import name="DataTable" table="{{ hist.table }}" hint-size="100%,260px"></dc-import>
+        </div>
+      </sc-if>
+
+      <!-- ================= MERGE TASKS ================= -->
+      <sc-if value="{{ v.merge }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:#5B6678;line-height:1.5;max-width:920px">Select two or more tasks and merge them under one consolidated name. Hours from every employee are aggregated; raw records are never changed — merges are stored separately and can be undone. Showing all tasks across all uploads.</div>
+          <sc-if value="{{ mg.hasSuggest }}">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+              <div><div style="font-size:14px;font-weight:600">Suggested merges</div><div style="font-size:12px;color:#8A94A6">Similar wording, same client. Review before merging — nothing is merged automatically.</div></div>
+              <sc-for list="{{ mg.suggest }}" as="g">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:8px;background:#F6F8FB;flex-wrap:wrap">
+                  <div style="min-width:0;flex:1 1 400px"><div style="font-size:13px;font-weight:500;text-wrap:pretty">{{ g.names }}</div><div style="font-size:12px;color:#6B7588;margin-top:2px">{{ g.meta }}</div></div>
+                  <button onClick="{{ g.onSelect }}" style="height:30px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1A3170;font-size:12.5px;font-weight:600;cursor:pointer;flex:none">Select these</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:60px;z-index:3;background:#F3F5F9;padding:6px 0">
+            <input value="{{ mg.q }}" onChange="{{ on.mergeQ }}" placeholder="Search tasks…" style="height:36px;width:300px;max-width:100%;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;background:#FFFFFF;outline:none">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:13px;color:#3B4557">{{ mg.selText }}</span>
+              <sc-if value="{{ mg.hasSel }}"><button onClick="{{ on.clearSel }}" style="height:34px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Clear</button></sc-if>
+              <button onClick="{{ on.openMerge }}" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;opacity:{{ mg.btnOp }}"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">merge</span>Merge Selected Tasks</button>
+            </div>
+          </div>
+          <dc-import name="DataTable" table="{{ mg.table }}" hint-size="100%,500px"></dc-import>
+          <div style="font-size:15px;font-weight:600;margin-top:6px">Merge history</div>
+          <dc-import name="DataTable" table="{{ mg.history }}" hint-size="100%,160px"></dc-import>
+        </div>
+      </sc-if>
+
+      <!-- ================= SETTINGS ================= -->
+      <sc-if value="{{ v.settings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px;max-width:1100px">
+          <div style="display:flex;gap:4px;border-bottom:1px solid #E4E8EF;flex-wrap:wrap">
+            <sc-for list="{{ st.tabs }}" as="t"><button onClick="{{ t.onClick }}" style="height:40px;padding:0 14px;border:0;border-bottom:2px solid {{ t.bd }};background:transparent;color:{{ t.fg }};font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:-1px">{{ t.label }}</button></sc-for>
+          </div>
+
+          <sc-if value="{{ st.isWorkflow }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="font-size:13px;color:#5B6678;line-height:1.55">One row per employee found in the uploaded data. A Team Lead sees their own timesheet plus everyone on the same Team; an Employee sees only their own. Creating a login sets the User ID to the employee's first name and the password to their last name — share those with them, and they can change the password from the login screen.</div>
+              <dc-import name="DataTable" table="{{ st.workflow }}" hint-size="100%,320px"></dc-import>
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-top:6px">
+                <div style="font-size:15px;font-weight:600">Assign employees to a Team Lead</div>
+                <sc-if value="{{ st.tlPanel.sel }}" hint-placeholder-val="{{ false }}">
+                  <label style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:10.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6B7588">Team Lead</span>{{ st.tlPanel.sel }}</label>
+                </sc-if>
+                <div style="font-size:12.5px;color:#6B7588">{{ st.tlPanel.note }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <sc-for list="{{ st.tlPanel.chips }}" as="c"><button onClick="{{ c.onClick }}" style="height:28px;padding:0 12px;border-radius:999px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-size:12.5px;font-weight:500;cursor:pointer">{{ c.label }}</button></sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isUsers }}">
+            <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:16px;align-items:start">
+              <div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:600">Users</div><dc-import name="DataTable" table="{{ st.users }}" hint-size="100%,200px"></dc-import>
+                <div style="font-size:12px;color:#8A94A6;line-height:1.5">Admin: settings, uploads, merges, configuration, deletion. Viewer: dashboard, analysis and downloads only.</div></div>
+              <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px">
+                <div style="font-size:15px;font-weight:600">{{ st.uf.title }}</div>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:#3B4557">Username<input value="{{ st.uf.username }}" onChange="{{ on.ufName }}" style="height:36px;padding:0 10px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;font-weight:400;outline:none"></label>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:#3B4557">Password<input type="password" value="{{ st.uf.password }}" onChange="{{ on.ufPass }}" placeholder="{{ st.uf.passPh }}" style="height:36px;padding:0 10px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;font-weight:400;outline:none"></label>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:#3B4557">Role{{ st.uf.roleSel }}</label>
+                <button onClick="{{ on.ufActive }}" style="display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:0;font-size:13px;color:#18202E;cursor:pointer"><span style="font-family:'Material Symbols Outlined';font-size:22px;line-height:1;color:#1A3170">{{ st.uf.activeIcon }}</span>Active</button>
+                <div style="display:flex;gap:8px;margin-top:4px">
+                  <button onClick="{{ on.saveUser }}" style="height:36px;padding:0 14px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">{{ st.uf.saveLabel }}</button>
+                  <sc-if value="{{ st.uf.editing }}"><button onClick="{{ on.cancelUser }}" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Cancel</button></sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isList }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="font-size:13px;color:#5B6678">{{ st.list.help }}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input value="{{ st.list.value }}" onChange="{{ st.list.onChange }}" onKeyDown="{{ st.list.onKey }}" placeholder="{{ st.list.placeholder }}" style="height:36px;width:300px;max-width:100%;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;background:#FFFFFF;outline:none">
+                <button onClick="{{ st.list.onSave }}" style="height:36px;padding:0 14px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">{{ st.list.saveLabel }}</button>
+                <sc-if value="{{ st.list.editing }}"><button onClick="{{ st.list.onCancel }}" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Cancel</button></sc-if>
+                <sc-if value="{{ st.list.hasUnknown }}"><button onClick="{{ st.list.addUnknown }}" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1A3170;font-size:13px;font-weight:500;cursor:pointer">{{ st.list.unknownLabel }}</button></sc-if>
+              </div>
+              <dc-import name="DataTable" table="{{ st.list.table }}" hint-size="100%,220px"></dc-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isSP }}">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:18px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+                <sc-for list="{{ st.spFields }}" as="fld">
+                  <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">{{ fld.label }}
+                    <div style="display:flex;align-items:center;gap:8px"><input type="number" step="any" value="{{ fld.value }}" onChange="{{ fld.onChange }}" style="height:36px;width:120px;padding:0 10px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;font-weight:400;outline:none"><span style="font-size:12.5px;font-weight:400;color:#6B7588">{{ fld.unit }}</span></div>
+                  </label>
+                </sc-for>
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Week starts on (when the file has no Week Start column){{ st.weekSel }}</label>
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">Ambiguous date order (e.g. 03/04/2026){{ st.dateSel }}</label>
+              </div>
+              <button onClick="{{ on.toggleExcl }}" style="display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:0;font-size:13px;color:#18202E;cursor:pointer;text-align:left"><span style="font-family:'Material Symbols Outlined';font-size:22px;line-height:1;color:#1A3170">{{ st.exclIcon }}</span>Exclude Leave / Holiday / Week Off hours from story points</button>
+              <div style="font-size:12.5px;color:#5B6678;line-height:1.55;padding:12px 14px;background:#F6F8FB;border-radius:8px">Story Points = Hours ÷ Hours per SP. Expected SP = Expected SP per week × weeks with entries (per employee). Achievement % = Actual SP ÷ Expected SP × 100 — status is “Below Expected” under the lower threshold and “Above Expected” over the upper one.</div>
+              <div><button onClick="{{ on.saveCfg }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">Save configuration</button></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isRules }}">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px">
+              <div style="font-size:13px;color:#5B6678;line-height:1.55">Comma-separated keywords matched against Task Type, Department and Description (whole words, case-insensitive). Evaluated top to bottom; anything unmatched is Project / Task Work, or Other when the row has no description or task type. Rows mentioning “meeting” default to Client Meetings unless the client is Internal.</div>
+              <sc-for list="{{ st.rules }}" as="r">
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">{{ r.label }}<textarea value="{{ r.value }}" onChange="{{ r.onChange }}" rows="2" style="padding:8px 10px;border:1px solid #D5DBE5;border-radius:8px;font-size:13px;font-weight:400;line-height:1.5;resize:vertical;outline:none"></textarea></label>
+              </sc-for>
+              <div><button onClick="{{ on.saveRules }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">Save rules &amp; reclassify</button></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isData }}">
+            <div style="background:#FFFFFF;border:1px solid #E4E8EF;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;flex-wrap:wrap;gap:28px">
+                <sc-for list="{{ st.dataStats }}" as="k"><div><div style="font-size:12px;color:#6B7588">{{ k.label }}</div><div style="font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">{{ k.value }}</div></div></sc-for>
+              </div>
+              <div style="font-size:13px;color:#5B6678;line-height:1.55">Stores: users, settings, uploads, timesheetRecords (raw + normalized), taskMerges. To remove a single week use Upload History.</div>
+              <div style="font-size:15px;font-weight:600">Delete data by week</div>
+              <dc-import name="DataTable" table="{{ st.weeks }}" hint-size="100%,200px"></dc-import>
+              <div style="font-size:12px;color:#8A94A6">Removes every record for that week across all uploads. Uploads left empty are removed; others have their totals updated.</div>
+              <div><button onClick="{{ on.clearAll }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #E3B4A8;background:#FFFFFF;color:#A2361F;font-size:13px;font-weight:600;cursor:pointer">Delete all timesheet data</button></div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+
+<!-- ================= UPLOAD WIZARD ================= -->
+<sc-if value="{{ up.open }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ on.closeUpload }}" style="position:fixed;inset:0;background:rgba(12,20,40,0.45);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto">
+    <div onClick="{{ on.stop }}" style="width:100%;max-width:1100px;background:#FFFFFF;border-radius:14px;box-shadow:0 24px 64px rgba(12,20,40,0.3);display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid #E4E8EF">
+        <div><div style="font-size:17px;font-weight:600">Upload Timesheet</div><div style="font-size:12.5px;color:#6B7588">{{ up.fileName }}</div></div>
+        <div style="display:flex;align-items:center;gap:18px">
+          <sc-for list="{{ up.steps }}" as="s"><div style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:{{ s.fg }}"><span style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;background:{{ s.bg }};color:{{ s.nfg }}">{{ s.n }}</span>{{ s.label }}</div></sc-for>
+          <button onClick="{{ on.closeUpload }}" style="width:32px;height:32px;border-radius:8px;border:0;background:#F3F5F9;color:#3B4557;cursor:pointer;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Outlined';font-size:20px;line-height:1">close</span></button>
+        </div>
+      </div>
+
+      <sc-if value="{{ up.isSelect }}">
+        <div style="padding:26px 22px;display:flex;flex-direction:column;gap:14px">
+          <div onClick="{{ on.pickFile }}" onDrop="{{ on.drop }}" onDragOver="{{ on.dragOver }}" onDragLeave="{{ on.dragLeave }}" style="border:2px dashed {{ up.dropBd }};background:{{ up.dropBg }};border-radius:12px;padding:48px 20px;text-align:center;cursor:pointer">
+            <span style="font-family:'Material Symbols Outlined';font-size:40px;line-height:1;color:#1A3170">upload_file</span>
+            <div style="font-size:15px;font-weight:600;margin-top:10px">Drop a timesheet here, or click to choose a file</div>
+            <div style="font-size:12.5px;color:#6B7588;margin-top:6px">.xlsx, .xls or .csv · columns are matched by header name, not position</div>
+          </div>
+          <input ref="{{ fileRef }}" type="file" accept=".xlsx,.xls,.csv" onChange="{{ on.fileChange }}" style="display:none">
+          <sc-if value="{{ up.error }}"><div style="padding:10px 12px;border-radius:8px;background:#FBE9E4;color:#A2361F;font-size:13px">{{ up.error }}</div></sc-if>
+          <div style="font-size:12.5px;color:#6B7588">No file handy? <a href="#" onClick="{{ on.sample }}">Generate a sample week</a> in the expected format ({{ up.sampleWeek }}).</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ up.isMapping }}">
+        <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+          <sc-if value="{{ up.hasMissing }}"><div style="padding:10px 12px;border-radius:8px;background:#FDF3E7;color:#9A5B12;font-size:13px">Could not identify required column(s): <b>{{ up.missingText }}</b>. Map them below to continue.</div></sc-if>
+          <sc-if value="{{ up.multiSheet }}"><label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500">Sheet <span style="width:240px">{{ up.sheetSel }}</span></label></sc-if>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px 18px">
+            <sc-for list="{{ up.fields }}" as="m">
+              <div style="display:flex;flex-direction:column;gap:5px;padding:10px 12px;border:1px solid #E4E8EF;border-radius:10px;background:{{ m.bg }}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:600">{{ m.label }} <span style="color:#A2361F">{{ m.req }}</span></span><span style="font-size:11.5px;color:{{ m.stFg }}">{{ m.status }}</span></div>
+                {{ m.select }}
+                <div style="font-size:11.5px;color:#8A94A6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.sample }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button onClick="{{ on.upBack }}" style="height:38px;padding:0 14px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Choose another file</button>
+            <button onClick="{{ on.mapContinue }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;opacity:{{ up.contOp }}">Continue to preview</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ up.isPreview }}">
+        <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+            <sc-for list="{{ up.stats }}" as="k"><div style="border:1px solid #E4E8EF;border-radius:10px;padding:11px 13px;background:#FBFCFE"><div style="font-size:11.5px;color:#6B7588">{{ k.label }}</div><div style="font-size:18px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums">{{ k.value }}</div></div></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:14px;font-weight:600">Validation</div><button onClick="{{ on.toMapping }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:12.5px;cursor:pointer">Review column mapping ({{ up.mappedText }})</button></div>
+            <sc-if value="{{ up.clean }}"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#E3F3EA;color:#1D6B45;font-size:13px"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">check_circle</span>No issues found. All rows will be imported.</div></sc-if>
+            <sc-for list="{{ up.issues }}" as="i">
+              <div style="display:flex;gap:10px;padding:9px 12px;border-radius:8px;background:{{ i.bg }};font-size:13px;align-items:flex-start">
+                <span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1;color:{{ i.fg }};flex:none">{{ i.icon }}</span>
+                <div style="min-width:0"><span style="font-weight:600;color:{{ i.fg }}">{{ i.count }}</span> <span style="color:#18202E">{{ i.label }}</span><div style="font-size:12px;color:#5B6678;margin-top:2px;word-break:break-word">{{ i.detail }}</div></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ up.hasUnknown }}"><button onClick="{{ on.toggleAdd }}" style="display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:4px 0;font-size:13px;color:#18202E;cursor:pointer;text-align:left"><span style="font-family:'Material Symbols Outlined';font-size:22px;line-height:1;color:#1A3170">{{ up.addIcon }}</span>Add unknown clients and teams to the configuration on import</button></sc-if>
+            <div style="font-size:12px;color:#8A94A6">Nothing is discarded — flagged rows are imported with their warnings attached and can be reviewed in Detailed Data.</div>
+          </div>
+          <div style="font-size:14px;font-weight:600">Preview <span style="font-weight:400;color:#8A94A6;font-size:12.5px">first 30 rows</span></div>
+          <dc-import name="DataTable" table="{{ up.preview }}" hint-size="100%,360px"></dc-import>
+          <div style="display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:#FFFFFF;padding:12px 0 18px;border-top:1px solid #E4E8EF;margin-bottom:-20px">
+            <button onClick="{{ on.upBack }}" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Choose another file</button>
+            <button onClick="{{ on.submit }}" style="display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 18px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13.5px;font-weight:600;cursor:pointer;opacity:{{ up.submitOp }}"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1">bar_chart</span>{{ up.submitLabel }}</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ================= MERGE MODAL ================= -->
+<sc-if value="{{ mm.open }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ on.closeMerge }}" style="position:fixed;inset:0;background:rgba(12,20,40,0.45);z-index:55;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div onClick="{{ on.stop }}" style="width:100%;max-width:560px;background:#FFFFFF;border-radius:14px;box-shadow:0 24px 64px rgba(12,20,40,0.3);padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:17px;font-weight:600">Merge {{ mm.count }} tasks</div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;padding:10px 12px;background:#F6F8FB;border-radius:8px">
+        <sc-for list="{{ mm.items }}" as="it"><div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }} <span style="color:#8A94A6">· {{ it.client }}</span></span><span style="font-variant-numeric:tabular-nums;flex:none">{{ it.hours }} h</span></div></sc-for>
+      </div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3B4557">New Consolidated Task Name<input value="{{ mm.name }}" onChange="{{ on.mName }}" style="height:40px;padding:0 12px;border:1px solid #D5DBE5;border-radius:8px;font-size:14px;font-weight:400;outline:none"></label>
+      <div style="font-size:12.5px;color:#5B6678">Combined: <b>{{ mm.total }} h</b> · <b>{{ mm.sp }} SP</b> · clients: {{ mm.clients }}</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button onClick="{{ on.closeMerge }}" style="height:38px;padding:0 14px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Cancel</button>
+        <button onClick="{{ on.doMerge }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #1A3170;background:#1A3170;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">Confirm merge</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ================= CONFIRM ================= -->
+<sc-if value="{{ cf.open }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ on.cCancel }}" style="position:fixed;inset:0;background:rgba(12,20,40,0.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div onClick="{{ on.stop }}" style="width:100%;max-width:440px;background:#FFFFFF;border-radius:14px;box-shadow:0 24px 64px rgba(12,20,40,0.3);padding:22px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:17px;font-weight:600">{{ cf.title }}</div>
+      <div style="font-size:13.5px;color:#4A5568;line-height:1.55">{{ cf.text }}</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button onClick="{{ on.cCancel }}" style="height:38px;padding:0 14px;border-radius:8px;border:1px solid #D5DBE5;background:#FFFFFF;color:#1C2536;font-size:13px;cursor:pointer">Cancel</button>
+        <button onClick="{{ on.cOk }}" style="height:38px;padding:0 16px;border-radius:8px;border:1px solid #A2361F;background:#A2361F;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer">{{ cf.label }}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;right:22px;bottom:22px;z-index:70;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:#101D3B;color:#FFFFFF;font-size:13px;box-shadow:0 12px 32px rgba(12,20,40,0.3);max-width:420px"><span style="font-family:'Material Symbols Outlined';font-size:18px;line-height:1;color:#8FD1B0">check_circle</span>{{ toast }}</div>
+</sc-if>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+/* Timesheet Management — UI logic. Business logic lives in ts-core.js (window.TSCore). */
+const F0 = { period: 'current', from: '', to: '', team: '', employee: '', client: '', department: '', project: '', billable: '', taskType: '', uploadId: '' };
+const UF0 = { id: null, username: '', password: '', role: 'Viewer', active: true, employeeName: '', team: '' };
+const ROLE_OPTS = [{ v: 'Admin', l: 'Admin — full access' }, { v: 'TL', l: 'Team Lead — own + team data' }, { v: 'Employee', l: 'Employee — own data only' }, { v: 'Viewer', l: 'Viewer — all data, view only' }];
+const splitName = n => { const p = String(n || '').trim().split(/\s+/); return { first: p[0] || '', last: p.slice(1).join(' ') || p[0] || '' }; };
+const TS = () => window.TSCore;
+const nf = (v, d) => (v == null || !isFinite(v)) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d });
+const pf = v => (v == null || !isFinite(v)) ? '—' : nf(v, 1) + '%';
+const r2 = v => Math.round((v || 0) * 100) / 100;
+const r4 = v => Math.round((v || 0) * 10000) / 10000;
+const sd = iso => { if (!iso) return ''; const d = new Date(iso + 'T00:00:00Z'); return d.getUTCDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]; };
+const STATUS = { on: { text: 'On Track', bg: '#E3F3EA', fg: '#1D6B45' }, below: { text: 'Below Expected', bg: '#FBE9E4', fg: '#A2361F' }, above: { text: 'Above Expected', bg: '#E5ECFA', fg: '#1F3F8F' } };
+const TONE = { warn: { bg: '#FDF3E7', fg: '#9A5B12' }, info: { bg: '#EEF3FB', fg: '#1F3F8F' }, neutral: { bg: '#F3F4F7', fg: '#4A5568' } };
+const NAVY = '#1A3170', NAVY_L = '#AEBBDA', TEAL = '#2F9C95', CORAL = '#D9785B';
+const CHARTS = ['dTrend','dWeek','dMix','dClient','eHours','eSP','eMix','eUtil','edClient','edTask','edDaily','tdDaily','cHours','cSP','cEmp','cTask','tHours','tSP','tUtil','mDonut','mEmp','bEmp','bClient','cmpEmp'];
+const pal = i => `hsl(${Math.round((i * 137.508 + 222) % 360)} 46% ${i % 2 ? 56 : 42}%)`;
+const SEL = { height: 34, padding: '0 8px', border: '1px solid #D5DBE5', borderRadius: 8, fontFamily: 'inherit', fontSize: 13, color: '#18202E', background: '#FFFFFF', width: '100%', cursor: 'pointer', outline: 'none' };
+const VIEWS = {
+  dashboard: ['Dashboard', 'space_dashboard'], analysis: ['Analysis', 'analytics'], compare: ['Compare Weeks', 'compare_arrows'], detail: ['Detailed Data', 'table_rows'],
+  history: ['Upload History', 'history'], merge: ['Merge Tasks', 'merge'], settings: ['Settings', 'settings'],
+};
+const DATA_VIEWS = ['dashboard', 'employees', 'empDetail', 'tasks', 'taskDetail', 'clients', 'teams', 'compare', 'detail'];
+
+class Component extends DCLogic {
+  state = {
+    ready: false, err: null, user: null, lu: '', lp: '', lerr: '',
+    view: 'dashboard', side: false, sideHover: false, hoverNav: null, filtersOpen: false, cfg: null, users: [], uploads: [], records: [], merges: [], ver: 0,
+    fd: { ...F0 }, f: { ...F0 }, search: '', sOpen: false, sorts: {}, q: {}, pages: {}, trend: 'hours', hideMeet: false,
+    empSel: null, taskSel: null, cmpA: '', cmpB: '', detCols: null, up: null, msel: {}, mModal: false, mName: '',
+    stab: 'workflow', uf: { ...UF0 }, newItem: { teams: '', clients: '' }, listEdit: null, cfgD: null, toast: '', confirm: null,
+    pwMode: false, pwUser: '', pwOld: '', pwNew: '', pwErr: '', pwOk: '', wfTL: '',
+  };
+  cv = {}; charts = {};
+  refs = Object.fromEntries(CHARTS.map(n => [n, el => { this.cv[n] = el; }]));
+  fileRef = el => { this._file = el; };
+  dl = Object.fromEntries(['emp', 'task', 'client', 'team', 'raw', 'mix', 'ed', 'td', 'cmp'].flatMap(k => [[k, () => this._dl(k, 'xlsx')], [k + 'Csv', () => this._dl(k, 'csv')]]));
+
+  on = {
+    lu: e => this.setState({ lu: e.target.value, lerr: '' }),
+    lp: e => this.setState({ lp: e.target.value, lerr: '' }),
+    loginKey: e => { if (e.key === 'Enter') this._login(); },
+    login: () => this._login(),
+    showChangePw: () => this.setState({ pwMode: true, pwUser: this.state.lu, pwOld: '', pwNew: '', pwErr: '', pwOk: '' }),
+    backToLogin: () => this.setState({ pwMode: false }),
+    pwUser: e => this.setState({ pwUser: e.target.value, pwErr: '' }),
+    pwOld: e => this.setState({ pwOld: e.target.value, pwErr: '' }),
+    pwNew: e => this.setState({ pwNew: e.target.value, pwErr: '' }),
+    pwKey: e => { if (e.key === 'Enter') this._changePw(); },
+    doChangePw: () => this._changePw(),
+    logout: () => { try { localStorage.removeItem('tsm_session'); } catch (e) {} this.setState({ user: null, lp: '', view: 'dashboard' }); },
+    toggleSide: () => this.setState(s => ({ side: !s.side })),
+    sideEnter: () => this.setState({ sideHover: true }), sideLeave: () => this.setState({ sideHover: false }),
+    toggleFilters: () => this.setState(s => ({ filtersOpen: !s.filtersOpen })),
+    search: e => this.setState({ search: e.target.value, sOpen: true }),
+    sFocus: () => this.setState({ sOpen: true }),
+    sBlur: () => setTimeout(() => this.setState({ sOpen: false }), 150),
+    openUpload: () => this.setState({ up: { step: 'select' } }),
+    goSettings: () => this._go('settings'),
+    goCompare: () => this._go('compare'),
+    from: e => this._fd('from', e.target.value),
+    to: e => this._fd('to', e.target.value),
+    apply: () => this.setState(s => ({ f: { ...s.fd }, pages: {} })),
+    reset: () => this.setState({ f: { ...F0 }, fd: { ...F0 }, pages: {} }),
+    clearUpload: () => this.setState(s => ({ f: { ...s.f, uploadId: '' }, fd: { ...s.fd, uploadId: '' } })),
+    sampleDirect: () => { this.setState({ up: { step: 'select' } }); setTimeout(() => this._sample(), 0); },
+    empQ: e => this._q('emp', e.target.value), taskQ: e => this._q('task', e.target.value),
+    detQ: e => this._q('det', e.target.value), mergeQ: e => this._q('merge', e.target.value),
+    hideMeet: () => this.setState(s => ({ hideMeet: !s.hideMeet, pages: { ...s.pages, task: 0 } })),
+    backEmp: () => this.setState({ view: 'employees' }), backTask: () => this.setState({ view: 'tasks' }),
+    clearSel: () => this.setState({ msel: {} }),
+    openMerge: () => this._openMerge(), closeMerge: () => this.setState({ mModal: false }),
+    mName: e => this.setState({ mName: e.target.value }), doMerge: () => this._doMerge(),
+    ufName: e => this.setState(s => ({ uf: { ...s.uf, username: e.target.value } })),
+    ufPass: e => this.setState(s => ({ uf: { ...s.uf, password: e.target.value } })),
+    ufActive: () => this.setState(s => ({ uf: { ...s.uf, active: !s.uf.active } })),
+    saveUser: () => this._saveUser(), cancelUser: () => this.setState({ uf: { ...UF0 } }),
+    wfTLSel: e => this.setState({ wfTL: e.target.value }),
+    toggleExcl: () => this.setState(s => ({ cfgD: { ...s.cfgD, excludeLeaveFromSP: !s.cfgD.excludeLeaveFromSP } })),
+    saveCfg: () => this._saveCfg(), saveRules: () => this._saveRules(), clearAll: () => this._clearAll(),
+    closeUpload: () => { if (!(this.state.up && this.state.up.busy)) this.setState({ up: null }); },
+    stop: e => e.stopPropagation(),
+    pickFile: () => this._file && this._file.click(),
+    fileChange: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; this._onFile(f); },
+    drop: e => { e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; this._up({ drag: false }); this._onFile(f); },
+    dragOver: e => { e.preventDefault(); if (!this.state.up.drag) this._up({ drag: true }); },
+    dragLeave: () => this._up({ drag: false }),
+    sample: e => { if (e) e.preventDefault(); this._sample(); },
+    upBack: () => this.setState({ up: { step: 'select' } }),
+    mapContinue: () => this._mapContinue(),
+    toMapping: () => this._up({ step: 'mapping' }),
+    toggleAdd: () => this._up({ addUnknown: !this.state.up.addUnknown }),
+    submit: () => this._submit(),
+    cCancel: () => this.setState({ confirm: null }),
+    cOk: () => { const c = this.state.confirm; this.setState({ confirm: null }); if (c) c.action(); },
+  };
+
+  /* ---------- lifecycle ---------- */
+  componentDidMount() { this._wait(0); }
+  componentWillUnmount() { Object.values(this.charts).forEach(c => { try { c.destroy(); } catch (e) {} }); clearTimeout(this._tt); }
+  componentDidUpdate() { this._syncCharts(); }
+  _wait(n) {
+    if (window.TSCore && window.XLSX && window.Chart) return this._boot();
+    if (n > 300) return this.setState({ err: 'Could not load required libraries. Check your internet connection and reload.' });
+    setTimeout(() => this._wait(n + 1), 100);
+  }
+  async _boot() {
+    try {
+      const d = await TS().init();
+      const C = window.Chart;
+      C.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif"; C.defaults.font.size = 12;
+      C.defaults.color = '#5B6678'; C.defaults.borderColor = '#EEF1F5';
+      let user = null;
+      try { const sid = localStorage.getItem('tsm_session'); user = d.users.find(u => u.id === sid && u.active) || null; } catch (e) {}
+      this.setState({ ready: true, users: d.users, cfg: d.cfg, uploads: d.uploads, records: d.records, merges: d.merges, user, ver: 1, cfgD: this._cfgDraft(d.cfg) });
+    } catch (e) { this.setState({ err: 'Storage error: ' + (e.message || e) }); }
+  }
+
+  /* ---------- small helpers ---------- */
+  _toast(msg) { clearTimeout(this._tt); this.setState({ toast: msg }); this._tt = setTimeout(() => this.setState({ toast: '' }), 3000); }
+  _fd(k, v) { this.setState(s => ({ fd: { ...s.fd, [k]: v }, f: { ...s.f, [k]: v }, pages: {} })); }
+  _q(k, v) { this.setState(s => ({ q: { ...s.q, [k]: v }, pages: { ...s.pages, [k]: 0 } })); }
+  _up(patch) { this.setState(s => ({ up: s.up ? { ...s.up, ...patch } : s.up })); }
+  _isAdmin() { return this.state.user && this.state.user.role === 'Admin'; }
+  _go(view) {
+    if ((view === 'settings' || view === 'merge') && !this._isAdmin()) return;
+    if (view === 'analysis') view = this.state.aView || 'employees';
+    if (view === 'mix') view = 'employees';
+    this.setState({ view, sOpen: false });
+    try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  _openEmp(name) { this.setState({ view: 'empDetail', empSel: name, pages: { ...this.state.pages, edRaw: 0, edTask: 0 } }); }
+  _openTask(key) { this.setState({ view: 'taskDetail', taskSel: key, pages: { ...this.state.pages, tdRaw: 0 } }); }
+  _applyFilter(patch, view) { const f = { ...this.state.f, ...patch }; this.setState({ f, fd: { ...f }, view, pages: {} }); }
+  _sel(value, onChange, options, style) {
+    return React.createElement('select', { value: value == null ? '' : value, onChange, style: style || SEL },
+      options.map(o => React.createElement('option', { key: o.v, value: o.v }, o.l)));
+  }
+  _cfgDraft(c) {
+    return { hoursPerSP: String(c.hoursPerSP), expectedSPPerWeek: String(c.expectedSPPerWeek), expectedHoursPerWeek: String(c.expectedHoursPerWeek), workingDays: String(c.workingDays),
+      below: String(c.thresholds.below), above: String(c.thresholds.above), highMeetingPct: String(c.highMeetingPct), nonBillablePct: String(c.nonBillablePct),
+      weekStartDay: String(c.weekStartDay), dateOrder: c.dateOrder, excludeLeaveFromSP: !!c.excludeLeaveFromSP, rules: { ...c.rules } };
+  }
+
+  /* ---------- data access (cached per data version + filter) ---------- */
+  _p() {
+    const s = this.state;
+    if (this._pv !== s.ver) { this._pv = s.ver; this._pp = TS().prepare(s.records, s.cfg, s.merges); this._ac = {}; this._fc = {}; this._sigSet = null; this._exSet = null; }
+    return this._pp;
+  }
+  _recs(f) {
+    const p = this._p(); const u = this.state.user;
+    let ff = f;
+    if (u && u.role === 'Employee' && u.employeeName) ff = { ...f, employee: u.employeeName };
+    else if (u && u.role === 'TL') {
+      const allowed = new Set([...(u.assignedEmployees || []), u.employeeName].filter(Boolean));
+      if (!allowed.size && u.team) ff = { ...f, team: u.team };
+      else { ff = f; }
+    }
+    const k = JSON.stringify(ff);
+    if (Object.keys(this._fc).length > 40) { this._fc = {}; this._ac = {}; }
+    if (!this._fc[k]) {
+      let recs = TS().filterRecords(this.state.records, ff, p);
+      if (u && u.role === 'TL' && u.assignedEmployees && u.assignedEmployees.length) {
+        const allowed = new Set([...u.assignedEmployees, u.employeeName].filter(Boolean));
+        recs = recs.filter(r => allowed.has(r.n.employee));
+      }
+      this._fc[k] = recs;
+    }
+    return this._fc[k];
+  }
+  _agg(f) {
+    const p = this._p(); const k = JSON.stringify(f);
+    if (!this._ac[k]) this._ac[k] = TS().aggregate(this._recs(f), this.state.cfg, p);
+    return this._ac[k];
+  }
+  _all() { return this._agg({ ...F0, period: 'all' }); }
+  _prevF(f) {
+    const w = this._p().weeks.map(x => x.start); let cur = null;
+    if (f.period === 'current') cur = w[w.length - 1]; else if (f.period === 'previous') cur = w[w.length - 2]; else if (f.period && f.period.startsWith('w:')) cur = f.period.slice(2);
+    const i = cur ? w.indexOf(cur) : -1;
+    return i > 0 ? { ...f, period: 'w:' + w[i - 1] } : null;
+  }
+  _periodLabel(f) {
+    const w = this._p().weeks; const fm = TS().fmtDate; const lab = x => x ? fm(x.start) + ' – ' + fm(x.end) : '—';
+    const last = w[w.length - 1];
+    switch (f.period) {
+      case 'all': return w.length ? 'All data · ' + fm(w[0].start) + ' – ' + fm(last.end) : 'All data';
+      case 'current': return 'Current week · ' + lab(last);
+      case 'previous': return 'Previous week · ' + lab(w[w.length - 2]);
+      case 'last2': return 'Last 2 weeks' + (w.length ? ' · ' + fm(w[Math.max(0, w.length - 2)].start) + ' – ' + fm(last.end) : '');
+      case 'last4': return 'Last 4 weeks' + (w.length ? ' · ' + fm(w[Math.max(0, w.length - 4)].start) + ' – ' + fm(last.end) : '');
+      case 'custom': return 'Custom · ' + (f.from ? fm(f.from) : '…') + ' – ' + (f.to ? fm(f.to) : '…');
+      default: if (f.period && f.period.startsWith('w:')) return 'Week · ' + lab(w.find(x => x.start === f.period.slice(2)));
+    }
+    return '';
+  }
+
+  /* ---------- generic table view-model for DataTable.dc.html ---------- */
+  _sort(id, k, d0) { const cur = this.state.sorts[id]; const d = cur && cur.k === k ? -cur.d : d0; this.setState(s => ({ sorts: { ...s.sorts, [id]: { k, d } }, pages: { ...s.pages, [id]: 0 } })); }
+  _page(id, p) { this.setState(s => ({ pages: { ...s.pages, [id]: p } })); }
+  _cell(c, r) {
+    const x = { align: c.num ? 'right' : 'left', color: '#18202E', weight: '400', ws: c.wrap ? 'normal' : 'nowrap', maxw: c.maxw || 'none', tip: '', plain: true, v: '', badge: null, check: null, actions: null };
+    if (c.cell) return Object.assign(x, c.cell(r));
+    const val = c.get ? c.get(r) : r[c.k];
+    x.v = c.fmt ? c.fmt(val, r) : (c.num ? nf(val) : (val == null || val === '' ? '—' : String(val)));
+    if (c.num && !val) x.color = '#A3ACBB';
+    if (c.strong) { x.weight = '600'; x.color = '#14285A'; }
+    if (c.bold) x.weight = '600';
+    if (c.muted) x.color = '#5B6678';
+    if (c.maxw) x.tip = String(x.v);
+    return x;
+  }
+  _tbl(id, cols, data, o = {}) {
+    let st = this.state.sorts[id] || o.sort || null;
+    if (st && !cols.some(c => c.k === st.k) && st.k === 'hours' && cols.some(c => c.k === 'sp')) st = { ...st, k: 'sp' };
+    let rows = data;
+    if (st) {
+      const col = cols.find(c => c.k === st.k);
+      if (col) {
+        const sv = col.sv || col.get || (r => r[col.k]);
+        rows = rows.slice().sort((a, b) => {
+          const x = sv(a), y = sv(b);
+          if (typeof x === 'number' || typeof y === 'number') return ((x || 0) - (y || 0)) * st.d;
+          return String(x == null ? '' : x).localeCompare(String(y == null ? '' : y)) * st.d;
+        });
+      }
+    }
+    const total = rows.length; let pager = null;
+    if (o.pageSize && total > o.pageSize) {
+      const pages = Math.ceil(total / o.pageSize); const p = Math.min(this.state.pages[id] || 0, pages - 1);
+      rows = rows.slice(p * o.pageSize, (p + 1) * o.pageSize);
+      pager = { text: `${(p * o.pageSize + 1).toLocaleString()}–${(p * o.pageSize + rows.length).toLocaleString()} of ${total.toLocaleString()}`, page: `Page ${p + 1} / ${pages}`,
+        prev: () => p > 0 && this._page(id, p - 1), next: () => p < pages - 1 && this._page(id, p + 1), prevOp: p > 0 ? '1' : '0.4', nextOp: p < pages - 1 ? '1' : '0.4' };
+    }
+    const tcols = cols.map(c => ({ label: c.label, align: c.num ? 'right' : 'left', tip: c.tip || '', arrow: st && st.k === c.k ? (st.d > 0 ? '▲' : '▼') : '', cursor: c.nosort ? 'default' : 'pointer', onClick: c.nosort ? null : () => this._sort(id, c.k, c.num ? -1 : 1) }));
+    const trows = rows.map(r => ({ cursor: o.onRow ? 'pointer' : 'default', bg: (o.rowBg && o.rowBg(r)) || 'transparent', onClick: o.onRow ? () => o.onRow(r) : null, cells: cols.map(c => this._cell(c, r)) }));
+    if (o.total && total) trows.push({ cursor: 'default', bg: '#F6F8FB', onClick: null, cells: cols.map(c => { const x = this._cell(c, o.total); x.weight = '600'; return x; }) });
+    return { cols: tcols, rows: trows, pager, empty: total === 0, emptyText: o.empty || 'No records for the current selection.' };
+  }
+
+  /* ---------- charts ---------- */
+  _syncCharts() {
+    const s = this.state;
+    if (!s.ready || !s.user || !window.Chart) return;
+    const sig = [s.view, s.ver, JSON.stringify(s.f), s.trend, s.empSel, s.taskSel, s.cmpA, s.cmpB, s.hideMeet, s.unit].join('|');
+    const stale = Object.keys(this.charts).some(n => this.charts[n].canvas !== this.cv[n]);
+    const missing = CHARTS.some(n => this.cv[n] && !this.charts[n]);
+    if (sig === this._sig && !stale && !missing) return;
+    this._sig = sig;
+    let cfgs = {};
+    try { cfgs = this._chartCfgs(); } catch (e) { console.error(e); }
+    Object.keys(this.charts).forEach(n => { const ch = this.charts[n]; if (!cfgs[n] || !this.cv[n] || ch.canvas !== this.cv[n]) { try { ch.destroy(); } catch (e) {} delete this.charts[n]; } });
+    Object.keys(cfgs).forEach(n => {
+      const cv = this.cv[n]; if (!cv || !cv.isConnected) return;
+      const ch = this.charts[n];
+      if (ch) { ch.data = cfgs[n].data; ch.options = cfgs[n].options; ch.update(); }
+      else this.charts[n] = new window.Chart(cv, cfgs[n]);
+    });
+  }
+  _bar(labels, datasets, o = {}) {
+    const tick = o.pct ? (v => v + '%') : undefined;
+    return { type: 'bar', data: { labels, datasets: datasets.map(d => ({ borderRadius: 3, maxBarThickness: o.thick || 24, ...d })) },
+      options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, indexAxis: o.h ? 'y' : 'x',
+        plugins: { legend: { display: datasets.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 12 } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${nf(c.raw)}${o.pct ? '%' : o.unit || ''}` } } },
+        scales: { x: { stacked: !!o.stack, grid: { display: !!o.h }, beginAtZero: true, max: o.pct && o.h && o.stack ? 100 : undefined, ticks: o.h ? { callback: tick } : { autoSkip: true, maxRotation: 45 } },
+          y: { stacked: !!o.stack, grid: { display: !o.h }, beginAtZero: true, ticks: o.h ? { autoSkip: false } : { callback: tick } } } } };
+  }
+  _line(labels, datasets) {
+    return { type: 'line', data: { labels, datasets: datasets.map(d => ({ borderColor: NAVY, backgroundColor: 'rgba(26,49,112,0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: NAVY, borderWidth: 2, ...d })) },
+      options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, plugins: { legend: { display: datasets.length > 1, position: 'bottom' } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } } } };
+  }
+  _donut(labels, data, colors) {
+    const tot = data.reduce((a, b) => a + b, 0) || 1;
+    return { type: 'doughnut', data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#FFFFFF' }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%', animation: { duration: 300 },
+        plugins: { legend: { position: 'right', labels: { boxWidth: 10, boxHeight: 10, padding: 10 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${nf(c.raw)} h (${pf(c.raw / tot * 100)})` } } } } };
+  }
+  /* ---------- render ---------- */
+  renderVals() {
+    const s = this.state;
+    if (!s.ready) return { isLoading: true, loadMsg: s.err || 'Loading Timesheet Management…' };
+    if (!s.user) return this._vm_login();
+    const admin = s.user.role === 'Admin'; const has = s.records.length > 0;
+    const view = s.view; const isData = DATA_VIEWS.includes(view);
+    const AV = ['employees', 'tasks', 'clients', 'teams', 'empDetail', 'taskDetail'];
+    const activeNav = AV.includes(view) ? 'analysis' : view;
+    const nav = Object.keys(VIEWS).filter(k => admin || (k !== 'settings' && k !== 'merge')).map(k => ({
+      label: VIEWS[k][0], icon: VIEWS[k][1], showLabel: s.side || s.sideHover, onClick: () => this._go(k),
+      onEnter: () => {}, onLeave: () => {}, tip: false,
+      bg: activeNav === k ? '#22366A' : 'transparent', fg: activeNav === k ? '#FFFFFF' : '#C9D3E6' }));
+    const titles = { ...Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [k, v[0]])), employees: 'Analysis · By Employee', tasks: 'Analysis · By Task', clients: 'Analysis · By Client', teams: 'Analysis · By Team', empDetail: 'Employee Detail', taskDetail: 'Task Detail', compare: 'Week-over-Week Comparison' };
+    const aTabs = [['employees', 'By Employee'], ['tasks', 'By Task'], ['clients', 'By Client'], ['teams', 'By Team']];
+    const subs = { history: `${s.uploads.length} upload${s.uploads.length === 1 ? '' : 's'} stored · ${s.records.length.toLocaleString()} records`, merge: `${s.merges.length} active merge${s.merges.length === 1 ? '' : 's'}`, settings: 'Admin only · users, teams, clients, targets and rules' };
+    const upl = s.f.uploadId ? s.uploads.find(u => u.uploadId === s.f.uploadId) : null;
+    const out = {
+      isApp: true, on: this.on, refs: this.refs, fileRef: this.fileRef, dl: this.dl, admin, viewer: !admin,
+      sideW: (s.side || s.sideHover) ? '236px' : '68px', side: s.side || s.sideHover, on: { ...this.on }, nav,
+      filtersOpen: s.filtersOpen, showFilterBtn: isData && has,
+      filterBd: s.filtersOpen ? '#1A3170' : '#E4E8EF', filterBg: s.filtersOpen ? '#E5ECFA' : '#FFFFFF', filterFg: s.filtersOpen ? '#1A3170' : '#3B4557',
+      me: { name: s.user.username, role: s.user.role, initial: s.user.username.slice(0, 1).toUpperCase() },
+      title: titles[view] || '', subtitle: isData ? (has ? this._periodLabel(view === 'compare' ? { ...s.f, period: 'all' } : s.f) : 'No data uploaded yet') : (subs[view] || ''),
+      search: s.search, sres: this._searchVm(),
+      showFilters: isData && has && s.filtersOpen, filters: isData && has ? this._filterDefs() : [], isCustom: s.fd.period === 'custom', fd: s.fd,
+      pending: JSON.stringify(s.fd) !== JSON.stringify(s.f), uploadChip: upl ? upl.fileName : '',
+      filteredEmpty: isData && has && view !== 'compare' && this._recs(s.f).length === 0,
+      showEmpty: isData && !has, v: {}, toast: s.toast,
+      aSw: { show: has && ['employees', 'tasks', 'clients', 'teams'].includes(view),
+        units: [['hours', 'By Hour'], ['sp', 'By Story Point']].map(([k, l]) => { const on = (s.unit || 'hours') === k; return { label: l, onClick: () => this.setState({ unit: k }), bg: on ? '#1A3170' : 'transparent', fg: on ? '#FFFFFF' : '#3B4557' }; }),
+        unitNote: s.unit === 'sp' ? `1 SP = ${s.cfg.hoursPerSP} h · Leave / Holiday / Week Off not shown in SP` : '',
+        opts: aTabs.map(([k, l]) => ({ label: l, icon: view === k ? 'radio_button_checked' : 'radio_button_unchecked', onClick: () => this.setState({ view: k, aView: k }), bg: view === k ? '#FFFFFF' : 'transparent', fg: view === k ? '#14285A' : '#5B6678', ic: view === k ? '#1A3170' : '#A3ACBB', sh: view === k ? '0 1px 2px rgba(16,24,40,0.12)' : 'none' })) },
+      up: this._vmUpload(), mm: this._vmMergeModal(), cf: s.confirm ? { open: true, ...s.confirm } : { open: false },
+    };
+    if (!isData || has) { out.v[view] = true; const fn = this['_vm_' + view]; if (fn) Object.assign(out, fn.call(this)); }
+    return out;
+  }
+
+  _scopedOpts() {
+    const recs = this._recs({ ...F0, period: 'all' });
+    const uniq = get => [...new Set(recs.map(get).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return { employees: uniq(r => r.n.employee), teams: uniq(r => r.n.team), clients: uniq(r => r.n.client), departments: uniq(r => r.n.department), projects: uniq(r => r.n.project), taskTypes: uniq(r => r.n.taskType) };
+  }
+  _filterDefs() {
+    const s = this.state, p = this._p(), fd = s.fd, fm = TS().fmtDate; const role = s.user && s.user.role; const so = this._scopedOpts();
+    const per = [{ v: 'all', l: 'All data' }, { v: 'current', l: 'Current week' }, { v: 'previous', l: 'Previous week' }, { v: 'last2', l: 'Last 2 weeks' }, { v: 'last4', l: 'Last 4 weeks' },
+      ...p.weeks.slice().reverse().map(x => ({ v: 'w:' + x.start, l: fm(x.start) + ' – ' + fm(x.end) })), { v: 'custom', l: 'Custom date range' }];
+    const mk = (key, label, opts, all) => ({ key, label, select: this._sel(fd[key], e => this._fd(key, e.target.value), [{ v: '', l: all }, ...opts.map(o => typeof o === 'string' ? { v: o, l: o } : o)]) });
+    let emps = so.employees;
+    if (fd.team) { const set = new Set(this._recs({ ...F0, period: 'all' }).filter(r => r.n.team === fd.team).map(r => r.n.employee)); emps = emps.filter(e => set.has(e)); }
+    let defs = [
+      { key: 'period', label: 'Date / Week', select: this._sel(fd.period, e => this._fd('period', e.target.value), per) },
+      mk('team', 'Team', so.teams, 'All Teams'), mk('employee', 'Employee', emps, 'All Employees'), mk('client', 'Client', so.clients, 'All Clients'),
+      mk('department', 'Department', so.departments, 'All Departments'), mk('project', 'Project', so.projects, 'All Projects'),
+      mk('billable', 'Billable', [{ v: 'yes', l: 'Billable' }, { v: 'no', l: 'Non-Billable' }], 'All'), mk('taskType', 'Task Type', so.taskTypes, 'All Task Types'),
+    ];
+    if (role === 'Employee') defs = defs.filter(d => d.key !== 'team' && d.key !== 'employee');
+    else if (role === 'TL') defs = defs.filter(d => d.key !== 'team');
+    return defs;
+  }
+
+  _searchVm() {
+    const s = this.state; const q = s.search.trim().toLowerCase();
+    if (!s.sOpen || q.length < 2) return { open: false, items: [], none: false };
+    const p = this._p(); const so = this._scopedOpts(); const recs = this._recs({ ...F0, period: 'all' }); const items = [];
+    const add = (group, label, sub, fn) => items.push({ group, label, sub, onClick: () => { this.setState({ search: '', sOpen: false }); fn(); } });
+    const has = x => String(x || '').toLowerCase().includes(q);
+    so.employees.filter(has).slice(0, 5).forEach(x => add('Employee', x, 'Open employee detail', () => this._openEmp(x)));
+    so.clients.filter(has).slice(0, 4).forEach(x => add('Client', x, 'Show tasks for this client', () => this._applyFilter({ client: x }, 'tasks')));
+    let n = 0; const scopedTasks = new Set(recs.map(r => r._task));
+    p.taskIndex.forEach((t, k) => { if (n >= 6 || !scopedTasks.has(k)) return; const nm = p.nameOf(k); if (has(nm)) { n++; add(k.startsWith('M:') ? 'Merged task' : k.startsWith('T:') ? 'Ticket' : 'Task', nm, [...t.clients].join(', '), () => this._openTask(k)); } });
+    so.projects.filter(has).slice(0, 3).forEach(x => add('Project', x, 'Filter dashboard by project', () => this._applyFilter({ project: x }, 'dashboard')));
+    let c = 0; for (const r of recs) if (has(r.n.description)) c++;
+    const term = s.search.trim();
+    if (c) add('Description', `${c.toLocaleString()} entries mention “${term}”`, 'Open in Detailed Data', () => this.setState(st => ({ view: 'detail', q: { ...st.q, det: term }, pages: { ...st.pages, det: 0 } })));
+    return { open: true, items, none: !items.length };
+  }
+
+  /* ---------- Dashboard ---------- */
+  _vm_dashboard() {
+    const s = this.state, cfg = s.cfg, a = this._agg(s.f), T = a.T;
+    const pfF = this._prevF(s.f); const prev = pfF ? this._agg(pfF) : null;
+    const share = v => T.hours ? pf(v / T.hours * 100) + ' of hours' : '';
+    const kpiMain = [
+      { label: 'Total Hours', value: nf(T.hours), sub: `${T.records.toLocaleString()} entries · ${T.weekCount} week${T.weekCount === 1 ? '' : 's'}`, tip: 'Sum of all hours logged in the selected period.', badge: null },
+      { label: 'Story Points', value: nf(T.sp), sub: `${cfg.hoursPerSP} h = 1 SP${cfg.excludeLeaveFromSP ? ' · leave excluded' : ''}`, tip: 'Story Points = (Total Hours − Leave Hours) ÷ Hours per Story Point', badge: null },
+      { label: 'Expected Story Points', value: nf(T.expSP), sub: `${cfg.expectedSPPerWeek} SP per employee per week`, tip: 'Expected SP = Σ over employees of (Expected SP per week × weeks with entries)', badge: null },
+      { label: 'SP Achievement', value: pf(T.ach), sub: `${nf(T.sp)} of ${nf(T.expSP)} SP`, tip: 'Achievement % = Actual Story Points ÷ Expected Story Points × 100', badge: STATUS[T.status] },
+    ];
+    const kpiSub = [
+      { label: 'Productive Utilization', value: pf(T.prodUtil), sub: 'Project hours ÷ available hours', tip: 'Productive Utilization % = Project/Task Hours ÷ Available Working Hours × 100\nAvailable Working Hours = Expected Weekly Hours × Weeks × Employees − Leave Hours' },
+      { label: 'Total Employees', value: nf(T.empCount, 0), sub: 'in selected period', tip: 'Distinct employees with at least one entry.' },
+      { label: 'Project / Task Hours', value: nf(T.cats.project), sub: share(T.cats.project), tip: 'Productive work — excludes meetings, training, admin, leave and unclassified.' },
+      { label: 'Internal Meeting Hours', value: nf(T.cats.internal_meeting), sub: share(T.cats.internal_meeting), tip: 'All internal meetings consolidated.' },
+      { label: 'Client Meeting Hours', value: nf(T.cats.client_meeting), sub: share(T.cats.client_meeting), tip: 'All client meetings consolidated.' },
+      { label: 'Total Hours', value: nf(T.nonBillable), sub: pf(100 - T.billPct || 0) + ' non-billable', tip: 'Hours where Is Billable is No or blank.' },
+      { label: 'Avg Hours / Employee', value: nf(T.avgHours, 1), sub: '', tip: 'Total Hours ÷ Total Employees' },
+      { label: 'Avg SP / Employee', value: nf(T.avgSP), sub: '', tip: 'Story Points ÷ Total Employees' },
+      { label: 'Leave / Holiday Hours', value: nf(T.cats.leave), sub: 'not counted as productive', tip: 'Shown separately; excluded from productive utilization.' },
+    ];
+    const pc = v => T.hours ? nf(v / T.hours * 100, 1) + '%' : '0%';
+    const PAST = [['#E8EEFB', '#D3DEF6', '#2C4A94'], ['#E3F4EC', '#CBE8DA', '#1D6B45'], ['#FDEEE3', '#F6DAC6', '#9A4F1C'], ['#EFEAFB', '#DDD3F4', '#5B3FA0'], ['#FBF4DC', '#F1E4B5', '#7A5A0E'], ['#FBE8EE', '#F3D0DC', '#9A2E55'], ['#E0F3F4', '#C4E6E8', '#1C6B70']];
+    const paint = (k, i) => { const c = PAST[i % PAST.length]; return { ...k, bg: c[0], bd: c[1], fg: c[2] }; };
+    kpiMain.forEach((k, i) => Object.assign(k, paint(k, i)));
+    kpiSub.forEach((k, i) => Object.assign(k, paint(k, i + 4)));
+    const topE = a.emps[0], topC = a.clients.find(c => !TS().isInternal(c.name)), topT = a.tasks.find(t => !t.key.startsWith('C:'));
+    const nB = a.emps.filter(e => e.status === 'below').length, nA = a.emps.filter(e => e.status === 'above').length;
+    const aiPoints = T.records ? [
+      topE && `${topE.name} logged the most time: ${nf(topE.hours)} h (${nf(topE.sp)} SP, ${pf(topE.ach)} of expected).`,
+      topC && `${topC.name} was the largest client at ${nf(topC.hours)} h — ${pc(topC.hours)} of all time across ${topC.taskCount} task${topC.taskCount === 1 ? '' : 's'}.`,
+      topT && `Largest task: “${topT.name}” (${topT.clientLabel}) — ${nf(topT.hours)} h by ${topT.empCount} employee${topT.empCount === 1 ? '' : 's'}.`,
+      `${a.emps.length - nB - nA} employee${a.emps.length - nB - nA === 1 ? '' : 's'} on track, ${nB} below and ${nA} above expected story points.`,
+      `Billable time was ${pf(T.billPct)}; productive utilization reached ${pf(T.prodUtil)} of available working hours.`,
+      T.cats.leave ? `${nf(T.cats.leave)} h of leave / holiday was recorded and excluded from productivity.` : null,
+    ].filter(Boolean).map(text => ({ text })) : [];
+    const summary = T.records ? `Team logged ${nf(T.hours)} hours across ${T.empCount} employee${T.empCount === 1 ? '' : 's'} and ${T.clientCount} client${T.clientCount === 1 ? '' : 's'} during the selected period. ${pc(T.cats.project)} of time was spent on project/task work, while ${pc(T.meetings)} was spent in meetings${T.cats.leave ? ` and ${pc(T.cats.leave)} on leave / holiday` : ''}. Story point achievement is ${pf(T.ach)} of expectation (${nf(T.sp)} of ${nf(T.expSP)} SP).` : 'No entries in the selected period.';
+    const rc = a.recon;
+    const reconOk = rc.ok;
+    let wow = [], wowLabel = '';
+    if (prev && prev.T.records) {
+      const P = prev.T;
+      const d = (c, p, isPct) => { const x = c - p; const t = isPct ? (x >= 0 ? '+' : '') + nf(x, 1) + ' pts' : (p ? (x >= 0 ? '+' : '') + nf(x / p * 100, 1) + '%' : '—'); return { delta: t, color: x > 0 ? '#1D6B45' : x < 0 ? '#A2361F' : '#8A94A6' }; };
+      wow = [
+        { label: 'Hours', cur: nf(T.hours), ...d(T.hours, P.hours) },
+        { label: 'Story Points', cur: nf(T.sp), ...d(T.sp, P.sp) },
+        { label: 'Achievement', cur: pf(T.ach), ...d(T.ach, P.ach, true) },
+        { label: 'Meeting Hours', cur: nf(T.meetings), ...d(T.meetings, P.meetings) },
+        { label: 'Billable %', cur: pf(T.billPct), ...d(T.billPct, P.billPct, true) },
+      ];
+      wowLabel = 'vs week of ' + TS().fmtDate(pfF.period.slice(2));
+    }
+    const ins = TS().insights(a, cfg, prev).map(i => ({ ...i, bg: (TONE[i.tone] || TONE.info).bg, fg: (TONE[i.tone] || TONE.info).fg, onClick: () => i.taskKey ? this._openTask(i.taskKey) : this._go(i.view === 'mix' ? 'employees' : (i.view || 'dashboard')) }));
+    return { dash: {
+      period: this._periodLabel(s.f), summary, aiPoints, kpiMain, kpiSub, insights: ins, noInsights: !ins.length,
+      reconText: reconOk ? `Reconciled — task and employee totals equal ${nf(rc.source)} source hours` : `Reconciliation warning: tasks ${nf(rc.taskSum)} h / employees ${nf(rc.empSum)} h vs source ${nf(rc.source)} h`,
+      reconTip: 'Sum of consolidated task hours and sum of employee hours are compared against the imported source hours for the same selection.',
+      reconBg: reconOk ? 'rgba(143,209,176,0.16)' : '#FBE9E4', reconFg: reconOk ? '#BFE7D2' : '#A2361F', reconIcon: reconOk ? 'verified' : 'warning',
+      hasWow: wow.length > 0, wow, wowLabel,
+      trendOpts: [['hours', 'Hours'], ['sp', 'Story Points'], ['emps', 'Employees']].map(([k, l]) => ({ label: l, onClick: () => this.setState({ trend: k }), bg: s.trend === k ? '#FFFFFF' : 'transparent', fg: s.trend === k ? '#18202E' : '#5B6678', sh: s.trend === k ? '0 1px 2px rgba(16,24,40,0.12)' : 'none' })),
+    } };
+  }
+
+  /* ---------- By Employee ---------- */
+  _U() { const hps = this.state.cfg.hoursPerSP || 8; return { sp: this.state.unit === 'sp', hps, c: v => (v || 0) / hps }; }
+  _empCols() {
+    const U = this._U();
+    if (U.sp) return [
+      { k: 'name', label: 'Employee', strong: true }, { k: 'team', label: 'Team' },
+      { k: 'im', label: 'Internal Meetings (SP)', num: true, get: e => U.c(e.cats.internal_meeting) },
+      { k: 'cm', label: 'Client Meetings (SP)', num: true, get: e => U.c(e.cats.client_meeting) },
+      { k: 'pj', label: 'Project / Task (SP)', num: true, get: e => U.c(e.cats.project) },
+      { k: 'sp', label: 'Total Story Points', num: true, bold: true, tip: 'Excludes Leave / Holiday / Week Off' },
+      { k: 'expSP', label: 'Expected SP', num: true },
+      { k: 'ach', label: 'Achievement %', num: true, fmt: pf, tip: 'Actual SP ÷ Expected SP × 100' },
+      { k: 'status', label: 'Status', sv: e => e.ach, cell: e => ({ plain: false, badge: STATUS[e.status] }) },
+    ];
+    return [
+      { k: 'name', label: 'Employee', strong: true }, { k: 'team', label: 'Team' },
+      { k: 'im', label: 'Internal Meetings', num: true, get: e => e.cats.internal_meeting },
+      { k: 'cm', label: 'Client Meetings', num: true, get: e => e.cats.client_meeting },
+      { k: 'pj', label: 'Project / Task Hours', num: true, get: e => e.cats.project },
+      { k: 'hours', label: 'Total Hours', num: true, bold: true },
+      { k: 'sp', label: 'Story Points', num: true }, { k: 'expSP', label: 'Expected SP', num: true },
+      { k: 'ach', label: 'Achievement %', num: true, fmt: pf, tip: 'Actual SP ÷ Expected SP × 100' },
+      { k: 'status', label: 'Status', sv: e => e.ach, cell: e => ({ plain: false, badge: STATUS[e.status] }) },
+      { k: 'util', label: 'Utilization', num: true, fmt: pf, tip: 'Total Hours ÷ Expected Hours × 100' },
+    ];
+  }
+  _vm_employees() {
+    const s = this.state, a = this._agg(s.f), T = a.T; const q = (s.q.emp || '').toLowerCase();
+    const rows = a.emps.filter(e => !q || e.name.toLowerCase().includes(q) || e.team.toLowerCase().includes(q));
+    const total = { name: 'Total', team: `${a.emps.length} employees`, cats: T.cats, hours: T.hours, sp: T.sp, expSP: T.expSP, ach: T.ach, status: T.status, util: T.util };
+    return { emp: {
+      q: s.q.emp || '', table: this._tbl('emp', this._empCols(), rows, { sort: { k: 'hours', d: -1 }, onRow: e => this._openEmp(e.name), total: q ? null : total }),
+      chartH: Math.max(260, a.emps.length * 26 + 70) + 'px', spSub: `Expected = ${s.cfg.expectedSPPerWeek} SP × weeks with entries`,
+    } };
+  }
+
+  _recCols(keys) {
+    const p = this._p(), fm = TS().fmtDate, CL = TS().CAT_LABEL;
+    const all = {
+      weekStart: { k: 'weekStart', label: 'Week Start', get: r => r.n.weekStart, fmt: fm },
+      date: { k: 'date', label: 'Date', get: r => r.n.date, fmt: (v, r) => v ? fm(v) : (r.n.rawDate || '—') },
+      employee: { k: 'employee', label: 'Employee', get: r => r.n.employee, strong: true },
+      empId: { k: 'empId', label: 'Emp ID', get: r => r.n.empId },
+      team: { k: 'team', label: 'Team', get: r => r.n.team },
+      client: { k: 'client', label: 'Client', get: r => r.n.client },
+      taskType: { k: 'taskType', label: 'Task Type', get: r => r.n.taskType },
+      task: { k: 'task', label: 'Consolidated Task', get: r => p.nameOf(r._task), maxw: '260px' },
+      category: { k: 'category', label: 'Category', get: r => CL[r._cat] },
+      description: { k: 'description', label: 'Description', get: r => r.n.description, maxw: '340px' },
+      hours: { k: 'hours', label: 'Hours', num: true, get: r => r.n.hours, bold: true },
+      billable: { k: 'billable', label: 'Billable', get: r => r.n.billable ? 'Yes' : 'No' },
+      department: { k: 'department', label: 'Department', get: r => r.n.department },
+      stage: { k: 'stage', label: 'Stage', get: r => r.n.stage },
+      phase: { k: 'phase', label: 'Phase', get: r => r.n.phase },
+      project: { k: 'project', label: 'Project', get: r => r.n.project },
+      flags: { k: 'flags', label: 'Warnings', get: r => (r.n.flags || []).join('; '), cell: r => { const t = (r.n.flags || []).join('; '); return { v: t || '—', color: t ? '#9A5B12' : '#A3ACBB', tip: t, maxw: '220px' }; } },
+      upload: { k: 'upload', label: 'Upload / Row', get: r => r.uploadId + ' #' + r.rowNumber, muted: true },
+    };
+    return keys ? keys.map(k => all[k]) : all;
+  }
+
+  _vm_empDetail() {
+    const s = this.state, a = this._agg(s.f), p = this._p(), cfg = s.cfg;
+    const e = a.emps.find(x => x.name === s.empSel);
+    if (!e) return { ed: { missing: true, name: s.empSel || '' } };
+    const recs = this._recs(s.f).filter(r => (r.n.employee || '(Unknown)') === e.name);
+    const tmap = new Map(a.tasks.map(t => [t.key, t]));
+    const hps = cfg.hoursPerSP || 8;
+    const trows = [...e.tasks.entries()].map(([k, h]) => ({ key: k, name: p.nameOf(k), client: (tmap.get(k) || {}).clientLabel || '', hours: h, sp: (cfg.excludeLeaveFromSP && k.startsWith('C:lv')) ? 0 : h / hps, pct: e.hours ? h / e.hours * 100 : 0 }));
+    return { ed: {
+      found: true, name: e.name,
+      info: [['Team', e.team], ['Emp ID', e.empId || '—'], ['Department', e.department || '—'], ['Employee Type', e.empType || '—'], ['Weeks', e.weekCount], ['Clients', e.clients.size]].map(([k, v]) => ({ k, v: String(v) })),
+      kpis: [
+        { label: 'Total Hours', value: nf(e.hours) }, { label: 'Story Points', value: nf(e.sp) }, { label: 'Expected SP', value: nf(e.expSP) },
+        { label: 'Achievement', value: pf(e.ach), badge: STATUS[e.status] }, { label: 'Project / Task Hours', value: nf(e.cats.project) },
+        { label: 'Internal Meetings', value: nf(e.cats.internal_meeting) }, { label: 'Client Meetings', value: nf(e.cats.client_meeting) },
+        { label: 'Leave / Holiday', value: nf(e.cats.leave) }, { label: 'Billable Hours', value: nf(e.billable) },
+        { label: 'Utilization', value: pf(e.util), tip: 'Total Hours ÷ Expected Hours × 100' },
+        { label: 'Productive Utilization', value: pf(e.prodUtil), tip: 'Project/Task Hours ÷ (Expected Hours − Leave Hours) × 100' },
+      ].map(k => ({ tip: '', badge: null, ...k })),
+      taskTable: this._tbl('edTask', [{ k: 'name', label: 'Task', strong: true, maxw: '380px' }, { k: 'client', label: 'Client' }, { k: 'hours', label: 'Hours', num: true, bold: true }, { k: 'sp', label: 'Story Points', num: true }, { k: 'pct', label: '% of Employee Time', num: true, fmt: pf }], trows, { sort: { k: 'hours', d: -1 }, pageSize: 15, onRow: t => this._openTask(t.key) }),
+      rawTable: this._tbl('edRaw', this._recCols(['date', 'client', 'taskType', 'task', 'description', 'hours', 'billable', 'project', 'flags']), recs, { sort: { k: 'date', d: 1 }, pageSize: 20 }),
+    } };
+  }
+
+  /* ---------- By Task (pivot) ---------- */
+  _taskRows() {
+    const s = this.state, a = this._agg(s.f); const q = (s.q.task || '').toLowerCase();
+    let rows = a.tasks;
+    if (s.hideMeet) rows = rows.filter(t => !t.key.startsWith('C:'));
+    if (q) rows = rows.filter(t => t.name.toLowerCase().includes(q) || t.clientLabel.toLowerCase().includes(q));
+    return { a, rows, emps: a.emps.map(e => e.name) };
+  }
+  _vm_tasks() {
+    const s = this.state; const { a, rows, emps } = this._taskRows(); const U = this._U();
+    const isLv = t => !!(t.key && t.key.startsWith('C:lv'));
+    const spFmt = (v, t) => isLv(t) ? '—' : nf(v, 3);
+    const cols = U.sp ? [
+      { k: 'name', label: 'Task / Project', strong: true, maxw: '320px' },
+      { k: 'client', label: 'Client Name', get: t => t.clientLabel },
+      ...emps.map((n, i) => ({ k: 'e' + i, label: n + ' (SP)', num: true, get: t => isLv(t) ? 0 : U.c(t.perEmp.get(n)), fmt: (v, t) => isLv(t) ? '—' : v ? nf(v, 3) : '–' })),
+      { k: 'sp', label: 'Total Story Points', num: true, bold: true, fmt: spFmt },
+    ] : [
+      { k: 'name', label: 'Task / Project', strong: true, maxw: '320px' },
+      { k: 'client', label: 'Client Name', get: t => t.clientLabel },
+      ...emps.map((n, i) => ({ k: 'e' + i, label: n, num: true, get: t => t.perEmp.get(n) || 0, fmt: v => v ? nf(v) : '–' })),
+      { k: 'hours', label: 'Total Hours', num: true, bold: true },
+      { k: 'sp', label: 'Story Points', num: true, fmt: spFmt },
+    ];
+    const per = new Map(); let th = 0, tsp = 0;
+    rows.forEach(t => { th += t.hours; tsp += t.sp; if (U.sp && isLv(t)) return; t.perEmp.forEach((h, n) => per.set(n, (per.get(n) || 0) + h)); });
+    const total = { name: `Total · ${rows.length} rows`, clientLabel: '', perEmp: per, hours: th, sp: tsp };
+    const rc = a.recon; const partial = rows.length !== a.tasks.length;
+    const ok = rc.ok;
+    return { tk: {
+      q: s.q.task || '', count: `${rows.length.toLocaleString()} task / client rows`, hps: s.cfg.hoursPerSP,
+      hideBg: s.hideMeet ? '#E5ECFA' : '#FFFFFF', hideFg: s.hideMeet ? '#1F3F8F' : '#3B4557', hideBd: s.hideMeet ? '#B9C8EA' : '#D5DBE5', hideIcon: s.hideMeet ? 'check_box' : 'check_box_outline_blank',
+      table: this._tbl('task', cols, rows, { sort: { k: 'hours', d: -1 }, pageSize: 25, onRow: t => this._openTask(t.key), total }),
+      reconOk: ok, reconIcon: ok ? 'verified' : 'warning', reconBg: ok ? '#E3F3EA' : '#FBE9E4', reconFg: ok ? '#1D6B45' : '#A2361F',
+      reconText: ok ? `Reconciled: all consolidated task hours (${nf(rc.taskSum)} h) equal the source hours for this selection (${nf(rc.source)} h).${partial ? ` Rows shown: ${nf(th)} h (search / hide filter applied).` : ''}` : `Reconciliation warning: task total ${nf(rc.taskSum)} h differs from source ${nf(rc.source)} h. No data was changed — review merges and uploads.`,
+    } };
+  }
+
+  _vm_taskDetail() {
+    const s = this.state, p = this._p(), hps = s.cfg.hoursPerSP || 8;
+    let f = s.f, a = this._agg(f), t = a.tasks.find(x => x.key === s.taskSel), allNote = false;
+    if (!t) { f = { ...F0, period: 'all' }; a = this._agg(f); t = a.tasks.find(x => x.key === s.taskSel); allNote = true; }
+    if (!t) return { td: { missing: true, name: p.nameOf(s.taskSel) } };
+    const recs = this._recs(f).filter(r => r._task === t.key);
+    const vmap = new Map(); recs.forEach(r => { const d = r.n.description || '(blank)'; vmap.set(d, (vmap.get(d) || 0) + 1); });
+    const variants = [...vmap.entries()].sort((x, y) => y[1] - x[1]).slice(0, 20).map(([text, n]) => ({ text, n }));
+    const isM = t.key.startsWith('M:'); const m = isM ? p.mergeById.get(t.key.slice(2)) : null;
+    const type = isM ? 'Manual merge' : t.key.startsWith('T:') ? 'Grouped by ticket ID' : t.key.startsWith('C:') ? 'Consolidated category' : 'Grouped by description';
+    const contrib = [...t.perEmp.entries()].map(([name, h]) => ({ name, hours: h, pct: t.hours ? h / t.hours * 100 : 0, sp: t.hours ? t.sp * h / t.hours : h / hps }));
+    return { td: {
+      found: true, allNote, name: t.name,
+      info: [['Client', t.clientLabel || '—'], ['Project', t.projectLabel || '—'], ['Grouping', type]].concat(m ? [['Merged by', m.createdBy + ' · ' + TS().fmtDate(m.createdDate.slice(0, 10))]] : []).map(([k, v]) => ({ k, v })),
+      canUndo: isM && this._isAdmin(), undo: () => this._undoMerge(t.key.slice(2)),
+      kpis: [['Total Hours', nf(t.hours)], ['Story Points', nf(t.sp, 3)], ['Employees', t.empCount], ['First Date Worked', TS().fmtDate(t.first)], ['Last Date Worked', TS().fmtDate(t.last)], ['Entries', t.count]].map(([label, value]) => ({ label, value: String(value) })),
+      contrib: this._tbl('tdC', [{ k: 'name', label: 'Employee', strong: true }, { k: 'hours', label: 'Hours', num: true, bold: true }, { k: 'pct', label: '% of Task', num: true, fmt: pf }, { k: 'sp', label: 'Story Points', num: true, fmt: v => nf(v, 3) }], contrib, { sort: { k: 'hours', d: -1 }, onRow: r => this._openEmp(r.name), total: { name: 'Total', hours: t.hours, pct: 100, sp: t.sp } }),
+      hasVariants: variants.length > 1, variants,
+      raw: this._tbl('tdRaw', this._recCols(['date', 'employee', 'client', 'taskType', 'description', 'hours', 'billable', 'project', 'upload']), recs, { sort: { k: 'date', d: 1 }, pageSize: 20 }),
+    } };
+  }
+  /* ---------- By Client / Team / Mix ---------- */
+  _clientCols() {
+    const U = this._U();
+    if (U.sp) return [
+      { k: 'name', label: 'Client', strong: true }, { k: 'sp', label: 'Total Story Points', num: true, bold: true, tip: 'Excludes Leave / Holiday / Week Off' },
+      { k: 'empCount', label: 'Employees', num: true, fmt: v => nf(v, 0) }, { k: 'taskCount', label: 'Tasks', num: true, fmt: v => nf(v, 0) },
+      { k: 'im', label: 'Internal Mtg (SP)', num: true, get: c => U.c(c.cats.internal_meeting) }, { k: 'cm', label: 'Client Mtg (SP)', num: true, get: c => U.c(c.cats.client_meeting) },
+      { k: 'pj', label: 'Project (SP)', num: true, get: c => U.c(c.cats.project) }, { k: 'billable', label: 'Billable (SP)', num: true, get: c => U.c(c.billable) },
+      { k: 'nonBillable', label: 'Non-Billable (SP)', num: true, get: c => U.c(c.nonBillable - c.cats.leave) },
+    ];
+    return [
+      { k: 'name', label: 'Client', strong: true }, { k: 'hours', label: 'Total Hours', num: true, bold: true }, { k: 'sp', label: 'Story Points', num: true },
+      { k: 'empCount', label: 'Employees', num: true, fmt: v => nf(v, 0) }, { k: 'taskCount', label: 'Tasks', num: true, fmt: v => nf(v, 0) },
+      { k: 'im', label: 'Internal Mtg', num: true, get: c => c.cats.internal_meeting }, { k: 'cm', label: 'Client Mtg', num: true, get: c => c.cats.client_meeting },
+      { k: 'pj', label: 'Project Hours', num: true, get: c => c.cats.project }, { k: 'billable', label: 'Billable', num: true }, { k: 'nonBillable', label: 'Non-Billable', num: true },
+    ];
+  }
+  _vm_clients() {
+    const s = this.state, a = this._agg(s.f), T = a.T;
+    const total = { name: 'Total', hours: T.hours, sp: T.sp, empCount: T.empCount, taskCount: a.tasks.length, cats: T.cats, billable: T.billable, nonBillable: T.nonBillable };
+    const n = a.clients.length;
+    return { cl: { table: this._tbl('client', this._clientCols(), a.clients, { sort: { k: 'hours', d: -1 }, onRow: c => { this._applyFilter({ client: c.name }, 'tasks'); this._toast('Filtered By Task to ' + c.name); }, total }),
+      chartH: Math.max(240, n * 30 + 60) + 'px', chartH2: Math.max(260, n * 34 + 90) + 'px' } };
+  }
+  _teamCols() {
+    const U = this._U();
+    if (U.sp) return [
+      { k: 'name', label: 'Team', strong: true }, { k: 'emps', label: 'Employees', num: true, fmt: v => nf(v, 0) },
+      { k: 'sp', label: 'Total Story Points', num: true, bold: true, tip: 'Excludes Leave / Holiday / Week Off' }, { k: 'expSP', label: 'Expected SP', num: true },
+      { k: 'ach', label: 'Achievement %', num: true, fmt: pf }, { k: 'status', label: 'Status', sv: t => t.ach, cell: t => ({ plain: false, badge: STATUS[t.status] }) },
+      { k: 'meetings', label: 'Meetings (SP)', num: true, get: t => U.c(t.meetings) }, { k: 'project', label: 'Project (SP)', num: true, get: t => U.c(t.project) },
+    ];
+    return [
+      { k: 'name', label: 'Team', strong: true }, { k: 'emps', label: 'Employees', num: true, fmt: v => nf(v, 0) }, { k: 'hours', label: 'Total Hours', num: true, bold: true },
+      { k: 'sp', label: 'Story Points', num: true }, { k: 'expSP', label: 'Expected SP', num: true }, { k: 'ach', label: 'Achievement %', num: true, fmt: pf },
+      { k: 'status', label: 'Status', sv: t => t.ach, cell: t => ({ plain: false, badge: STATUS[t.status] }) },
+      { k: 'meetings', label: 'Meeting Hours', num: true }, { k: 'project', label: 'Project Hours', num: true },
+      { k: 'util', label: 'Utilization', num: true, fmt: pf, tip: 'Total Hours ÷ Expected Hours' }, { k: 'prodUtil', label: 'Productive Util.', num: true, fmt: pf, tip: 'Project Hours ÷ (Expected Hours − Leave)' },
+    ];
+  }
+  _vm_teams() {
+    const s = this.state, a = this._agg(s.f), T = a.T;
+    const total = { name: 'Total', emps: T.empCount, hours: T.hours, sp: T.sp, expSP: T.expSP, ach: T.ach, status: T.status, meetings: T.meetings, project: T.cats.project, util: T.util, prodUtil: T.prodUtil };
+    return { tm: { table: this._tbl('team', this._teamCols(), a.teams, { sort: { k: 'hours', d: -1 }, onRow: t => { this._applyFilter({ team: t.name === '(No team)' ? '' : t.name }, 'employees'); }, total }) } };
+  }
+  _vm_mix() {
+    const s = this.state, a = this._agg(s.f), T = a.T;
+    const GROUP = { project: 'Productive', internal_meeting: 'Meetings', client_meeting: 'Meetings', training: 'Other working time', admin: 'Other working time', other: 'Other working time', leave: 'Availability' };
+    const cats = TS().CATS.map(c => { const h = T.cats[c.key]; const p = T.hours ? h / T.hours * 100 : 0; return { label: c.label, color: c.color, hours: nf(h), pct: pf(p), w: Math.max(0, Math.min(100, p)) + '%', group: GROUP[c.key] }; });
+    const bt = a.tasks.map(t => ({ ...t, nb: t.hours - t.billable, bp: t.hours ? t.billable / t.hours * 100 : 0 }));
+    return { mx: {
+      cats, chartH: Math.max(260, a.emps.length * 26 + 70) + 'px', chartH2: Math.max(240, a.clients.length * 30 + 70) + 'px',
+      bill: [['Billable Hours', nf(T.billable)], ['Non-Billable Hours', nf(T.nonBillable)], ['Billable %', pf(T.billPct)], ['Non-Billable %', pf(T.hours ? 100 - T.billPct : 0)]].map(([label, value]) => ({ label, value })),
+      taskTable: this._tbl('billTask', [{ k: 'name', label: 'Task', strong: true, maxw: '340px' }, { k: 'client', label: 'Client', get: t => t.clientLabel }, { k: 'billable', label: 'Billable Hours', num: true, bold: true }, { k: 'nb', label: 'Non-Billable', num: true }, { k: 'hours', label: 'Total', num: true }, { k: 'bp', label: 'Billable %', num: true, fmt: pf }], bt, { sort: { k: 'billable', d: -1 }, pageSize: 15, onRow: t => this._openTask(t.key) }),
+    } };
+  }
+
+  /* ---------- Compare ---------- */
+  _cmpData() {
+    const s = this.state, w = this._p().weeks;
+    if (w.length < 2) return null;
+    const B = s.cmpB && w.some(x => x.start === s.cmpB) ? s.cmpB : w[w.length - 1].start;
+    const A = s.cmpA && w.some(x => x.start === s.cmpA) ? s.cmpA : w[Math.max(0, w.findIndex(x => x.start === B) - 1)].start;
+    const base = { ...s.f, from: '', to: '', uploadId: '' };
+    return { A, B, a: this._agg({ ...base, period: 'w:' + A }), b: this._agg({ ...base, period: 'w:' + B }), weeks: w };
+  }
+  _vm_compare() {
+    const d = this._cmpData(); if (!d) return { cmp: { few: true } };
+    const fm = TS().fmtDate, { a, b } = d, A = a.T, B = b.T;
+    const opts = d.weeks.slice().reverse().map(x => ({ v: x.start, l: fm(x.start) + ' – ' + fm(x.end) }));
+    const chg = (c, p, isPct) => ({ plain: true, v: (c - p > 0 ? '+' : '') + nf(c - p) + (isPct ? ' pts' : ''), color: c - p > 0 ? '#1D6B45' : c - p < 0 ? '#A2361F' : '#8A94A6', align: 'right', weight: '600' });
+    const chp = (c, p) => ({ plain: true, v: p ? (c - p > 0 ? '+' : '') + nf((c - p) / p * 100, 1) + '%' : '—', align: 'right', color: '#5B6678' });
+    const M = [['Total Hours', t => t.hours], ['Story Points', t => t.sp], ['Expected Story Points', t => t.expSP], ['Achievement %', t => t.ach, 1], ['Meeting Hours', t => t.meetings], ['Project / Task Hours', t => t.cats.project], ['Billable %', t => t.billPct, 1], ['Utilization %', t => t.util, 1], ['Productive Utilization %', t => t.prodUtil, 1], ['Active Employees', t => t.activeEmps]]
+      .map(([metric, g, isPct]) => ({ metric, prev: g(A), cur: g(B), isPct }));
+    const mf = (v, r) => r.isPct ? pf(v) : nf(v);
+    const metrics = this._tbl('cmpM', [{ k: 'metric', label: 'Metric', strong: true, nosort: true }, { k: 'prev', label: 'Previous Week', num: true, fmt: mf, nosort: true }, { k: 'cur', label: 'Current Week', num: true, fmt: mf, nosort: true, bold: true }, { k: 'chg', label: 'Change', nosort: true, num: true, cell: r => chg(r.cur, r.prev, r.isPct) }, { k: 'chp', label: 'Change %', nosort: true, num: true, cell: r => r.isPct ? { v: '', plain: true } : chp(r.cur, r.prev) }], M);
+    const union = (xs, ys, key, val) => { const m = new Map(); xs.forEach(x => m.set(key(x), { key: key(x), x, prev: val(x), cur: 0 })); ys.forEach(y => { const k = key(y); const e = m.get(k) || { key: k, x: y, prev: 0, cur: 0 }; e.cur = val(y); e.y = y; m.set(k, e); }); return [...m.values()].map(e => ({ ...e, delta: e.cur - e.prev })); };
+    const am = new Map(a.emps.map(e => [e.name, e]));
+    const er = union(a.emps, b.emps, e => e.name, e => e.hours).map(r => { const pe = am.get(r.key); return { ...r, name: r.key, prevSP: pe ? pe.sp : 0, curSP: r.y ? r.y.sp : 0, prevAch: pe ? pe.ach : 0, curAch: r.y ? r.y.ach : 0 }; });
+    const ecols = [{ k: 'name', label: 'Employee', strong: true }, { k: 'prev', label: 'Previous Week (h)', num: true }, { k: 'cur', label: 'Current Week (h)', num: true, bold: true }, { k: 'delta', label: 'Change', num: true, cell: r => chg(r.cur, r.prev) }, { k: 'prevSP', label: 'Prev SP', num: true }, { k: 'curSP', label: 'Curr SP', num: true }, { k: 'prevAch', label: 'Prev Ach.', num: true, fmt: pf }, { k: 'curAch', label: 'Curr Ach.', num: true, fmt: pf }];
+    const cr = union(a.clients, b.clients, c => c.name, c => c.hours).map(r => ({ ...r, name: r.key }));
+    const tr = union(a.tasks, b.tasks, t => t.key, t => t.hours).map(r => ({ ...r, name: (r.y || r.x).name, client: (r.y || r.x).clientLabel, abs: Math.abs(r.cur - r.prev) }));
+    const dcols = [{ k: 'prev', label: 'Previous (h)', num: true }, { k: 'cur', label: 'Current (h)', num: true, bold: true }, { k: 'delta', label: 'Change', num: true, cell: r => chg(r.cur, r.prev) }];
+    this._cmpRows = { M, er, cr, tr, A: d.A, B: d.B };
+    return { cmp: {
+      ok: true, selA: this._sel(d.A, e => this.setState({ cmpA: e.target.value }), opts), selB: this._sel(d.B, e => this.setState({ cmpB: e.target.value }), opts),
+      metrics, emps: this._tbl('cmpE', ecols, er, { sort: { k: 'cur', d: -1 }, onRow: r => this._openEmp(r.name) }),
+      clients: this._tbl('cmpC', [{ k: 'name', label: 'Client', strong: true }, ...dcols], cr, { sort: { k: 'cur', d: -1 } }),
+      tasks: this._tbl('cmpT', [{ k: 'name', label: 'Task', strong: true, maxw: '260px' }, { k: 'client', label: 'Client' }, ...dcols], tr, { sort: { k: 'abs', d: -1 }, pageSize: 12, onRow: r => this._openTask(r.key) }),
+      chartH: Math.max(300, er.length * 26 + 70) + 'px',
+    } };
+  }
+
+  /* ---------- Detailed data ---------- */
+  _detRows() {
+    const s = this.state, p = this._p(); const q = (s.q.det || '').toLowerCase();
+    const recs = this._recs(s.f);
+    if (!q) return recs;
+    return recs.filter(r => { const n = r.n; return (n.employee + ' ' + n.client + ' ' + n.description + ' ' + n.taskType + ' ' + n.project + ' ' + n.ticket + ' ' + n.empId + ' ' + p.nameOf(r._task)).toLowerCase().includes(q); });
+  }
+  _vm_detail() {
+    const s = this.state; const all = this._recCols();
+    const vis = s.detCols || Object.fromEntries(Object.keys(all).map(k => [k, !['stage', 'phase', 'upload', 'empId', 'weekStart'].includes(k)]));
+    const rows = this._detRows(); const cols = Object.keys(all).filter(k => vis[k]).map(k => all[k]);
+    const hrs = rows.reduce((t, r) => t + (r.n.hours || 0), 0);
+    return { det: {
+      q: s.q.det || '', summary: `${rows.length.toLocaleString()} records · ${nf(hrs)} h`,
+      chips: Object.keys(all).map(k => ({ label: all[k].label, onClick: () => this.setState({ detCols: { ...vis, [k]: !vis[k] } }), bg: vis[k] ? '#E5ECFA' : '#FFFFFF', fg: vis[k] ? '#1F3F8F' : '#6B7588', bd: vis[k] ? '#B9C8EA' : '#D5DBE5' })),
+      table: this._tbl('det', cols.length ? cols : [all.employee], rows, { sort: { k: 'date', d: 1 }, pageSize: 50, rowBg: r => (r.n.flags && r.n.flags.length) ? '#FFFBF3' : '' }),
+    } };
+  }
+
+  /* ---------- Upload history ---------- */
+  _vm_history() {
+    const s = this.state; const admin = this._isAdmin(); const fm = TS().fmtDate;
+    const sums = new Map(); s.records.forEach(r => sums.set(r.uploadId, (sums.get(r.uploadId) || 0) + (r.n.hours || 0)));
+    const rows = s.uploads.slice().reverse().map(u => ({ ...u, stored: sums.get(u.uploadId) || 0 }));
+    const cols = [
+      { k: 'uploadId', label: 'Upload ID', muted: true }, { k: 'fileName', label: 'File Name', strong: true, maxw: '240px' },
+      { k: 'uploadDate', label: 'Uploaded', fmt: v => new Date(v).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+      { k: 'weekStart', label: 'Week Start', fmt: fm }, { k: 'weekEnd', label: 'Week End', fmt: fm },
+      { k: 'employeeCount', label: 'Employees', num: true, fmt: v => nf(v, 0) }, { k: 'recordCount', label: 'Records', num: true, fmt: v => nf(v, 0) },
+      { k: 'totalHours', label: 'Total Hours', num: true, bold: true }, { k: 'totalStoryPoints', label: 'Story Points', num: true }, { k: 'uploadedBy', label: 'Uploaded By' },
+      { k: 'rec', label: 'Reconciled', nosort: true, cell: u => ({ plain: false, badge: Math.abs(u.stored - u.totalHours) < 1e-6 ? { text: 'Matches source', bg: '#E3F3EA', fg: '#1D6B45' } : { text: 'Mismatch ' + nf(u.stored - u.totalHours), bg: '#FBE9E4', fg: '#A2361F' } }) },
+      { k: 'act', label: '', nosort: true, cell: u => ({ plain: false, actions: [
+        { label: 'View', color: '#1A3170', onClick: e => { e.stopPropagation(); this._applyFilter({ ...F0, period: 'all', uploadId: u.uploadId }, 'detail'); } },
+        { label: 'Reopen', color: '#1A3170', onClick: e => { e.stopPropagation(); this._applyFilter({ ...F0, period: 'all', uploadId: u.uploadId }, 'dashboard'); } },
+        { label: 'Download', color: '#1A3170', onClick: e => { e.stopPropagation(); this._dlUpload(u); } },
+      ].concat(admin ? [{ label: 'Delete', color: '#A2361F', onClick: e => { e.stopPropagation(); this._delUpload(u); } }] : []) }) },
+    ];
+    return { hist: { table: this._tbl('hist', cols, rows, { empty: 'No uploads yet. Use Upload Timesheet to add the first week.' }) } };
+  }
+
+  /* ---------- Merge tasks ---------- */
+  _vm_merge() {
+    const s = this.state, a = this._all(), p = this._p(); const q = (s.q.merge || '').toLowerCase(); const admin = this._isAdmin();
+    const cand = a.tasks.filter(t => !t.key.startsWith('C:'));
+    const rows = q ? cand.filter(t => t.name.toLowerCase().includes(q) || t.clientLabel.toLowerCase().includes(q)) : cand;
+    const variants = t => { const ti = p.taskIndex.get(t.key); const set = new Set(); if (ti) ti.bases.forEach(b => { const m = p.base.get(b); if (m) m.raws.forEach(x => set.add(x)); }); return [...set]; };
+    const sel = s.msel;
+    const cols = [
+      { k: 'sel', label: '', nosort: true, cell: t => ({ plain: false, check: sel[t.key] ? { bg: NAVY, bd: NAVY, mark: '✓' } : { bg: '#FFFFFF', bd: '#B9C2D0', mark: '' } }) },
+      { k: 'name', label: 'Proposed Consolidated Task', cell: t => { const v = variants(t); return { v: t.name, weight: '600', color: '#14285A', maxw: '360px', tip: v.length ? 'Source descriptions:\n' + v.slice(0, 12).join('\n') : '' }; } },
+      { k: 'client', label: 'Client', get: t => t.clientLabel },
+      { k: 'type', label: 'Grouping', get: t => t.key.startsWith('M:') ? 'Manual merge' : t.key.startsWith('T:') ? 'Ticket ID' : 'Description', muted: true },
+      { k: 'var', label: 'Source Variants', num: true, get: t => variants(t).length, fmt: v => nf(v, 0), tip: 'Distinct raw descriptions grouped into this task (hover the name to see them)' },
+      { k: 'empCount', label: 'Employees', num: true, fmt: v => nf(v, 0) }, { k: 'hours', label: 'Hours', num: true, bold: true }, { k: 'sp', label: 'Story Points', num: true, fmt: v => nf(v, 3) },
+    ];
+    const suggest = TS().suggestMerges(cand).map(g => ({ names: g.tasks.map(t => '“' + t.name + '”').join('  ·  '), meta: `${g.client} · ${g.tasks.length} tasks · ${nf(g.hours)} h`, onSelect: () => this.setState({ msel: Object.fromEntries(g.tasks.map(t => [t.key, true])) }) }));
+    const n = Object.keys(sel).length;
+    const hcols = [
+      { k: 'mergeId', label: 'Merge ID', muted: true }, { k: 'consolidatedTaskName', label: 'Consolidated Task', strong: true },
+      { k: 'orig', label: 'Original Tasks', get: m => m.originalTaskNames.join('  ·  '), wrap: true },
+      { k: 'createdBy', label: 'Created By' }, { k: 'createdDate', label: 'Created', fmt: v => new Date(v).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+      { k: 'act', label: '', nosort: true, cell: m => ({ plain: false, actions: admin ? [{ label: 'Undo Merge', color: '#A2361F', onClick: e => { e.stopPropagation(); this._undoMerge(m.mergeId); } }] : [] }) },
+    ];
+    return { mg: {
+      q: s.q.merge || '', hasSuggest: suggest.length > 0, suggest, hasSel: n > 0, selText: n ? `${n} selected` : 'Select tasks to merge', btnOp: n >= 2 ? '1' : '0.45',
+      table: this._tbl('merge', cols, rows, { sort: { k: 'hours', d: -1 }, pageSize: 30, onRow: admin ? (t => this.setState(st => { const m = { ...st.msel }; if (m[t.key]) delete m[t.key]; else m[t.key] = true; return { msel: m }; })) : null, rowBg: t => sel[t.key] ? '#EEF3FB' : '' }),
+      history: this._tbl('mh', hcols, s.merges.slice().reverse(), { empty: 'No manual merges yet.' }),
+    } };
+  }
+
+  /* ---------- Settings ---------- */
+  _vm_settings() {
+    const s = this.state; const tab = s.stab; const fm = TS().fmtDate;
+    const tabs = [['workflow', 'TL & Employee Access'], ['users', 'Users & Login'], ['teams', 'Teams'], ['clients', 'Clients'], ['sp', 'Story Points & Targets'], ['rules', 'Classification'], ['data', 'Data']].map(([id, label]) => ({ label, onClick: () => this.setState({ stab: id, listEdit: null }), bd: tab === id ? NAVY : 'transparent', fg: tab === id ? '#14285A' : '#6B7588' }));
+    const st = { tabs, isWorkflow: tab === 'workflow', isUsers: tab === 'users', isList: tab === 'teams' || tab === 'clients', isSP: tab === 'sp', isRules: tab === 'rules', isData: tab === 'data' };
+    if (st.isWorkflow) {
+      const a = this._all(); const wf = s.cfg.workflow || {};
+      const byName = new Map(s.users.filter(u => u.employeeName).map(u => [u.employeeName, u]));
+      const rows = a.emps.map(e => ({ name: e.name, team: e.team, role: wf[e.name] || 'Employee', u: byName.get(e.name) }));
+      st.workflow = this._tbl('workflow', [
+        { k: 'name', label: 'Employee', strong: true }, { k: 'team', label: 'Team' },
+        { k: 'role', label: 'Role', sv: r => r.role, cell: r => ({ plain: false, badge: r.role === 'TL' ? { text: 'Team Lead', bg: '#E5ECFA', fg: '#1F3F8F' } : { text: 'Employee', bg: '#F1F3F7', fg: '#4A5568' } }) },
+        { k: 'login', label: 'Login', get: r => r.u ? r.u.username : '—', muted: true },
+        { k: 'act', label: '', nosort: true, cell: r => ({ plain: false, actions: [
+          { label: r.role === 'TL' ? 'Make Employee' : 'Make Team Lead', color: '#1A3170', onClick: () => this._setWfRole(r.name, r.u, r.role === 'TL' ? 'Employee' : 'TL') },
+          r.u ? { label: 'Reset Password', color: '#1A3170', onClick: () => this._resetPw(r.u, r.name) } : { label: 'Create Login', color: '#1A3170', onClick: () => this._createLogin(r.name, r.team, r.role) },
+          r.u ? { label: 'Delete Login', color: '#A2361F', onClick: () => this._delUser(r.u) } : null,
+        ].filter(Boolean) }) },
+      ], rows, { sort: { k: 'name', d: 1 }, empty: 'No employees found yet — upload a timesheet first.' });
+      const tls = s.users.filter(u => u.role === 'TL');
+      const tl = tls.find(u => u.id === s.wfTL) || tls[0];
+      st.tlPanel = tls.length ? {
+        sel: this._sel(tl ? tl.id : '', e => this.setState({ wfTL: e.target.value }), tls.map(u => ({ v: u.id, l: u.username + (u.employeeName ? ' (' + u.employeeName + ')' : '') })), { ...SEL, width: '260px' }),
+        note: tl ? (tl.assignedEmployees && tl.assignedEmployees.length ? `Sees ${tl.assignedEmployees.length} assigned employee(s) plus their own timesheet.` : (tl.team ? `No individual assignments — currently falls back to everyone on Team "${tl.team}".` : 'No assignments yet — currently sees only their own timesheet.')) : '',
+        chips: tl ? a.emps.map(e => { const on = (tl.assignedEmployees || []).includes(e.name) || e.name === tl.employeeName; const self = e.name === tl.employeeName; return { label: e.name + (self ? ' (self)' : ''), on, self, onClick: self ? null : () => this._toggleAssign(tl, e.name), bd: on ? '#1A3170' : '#D5DBE5', bg: on ? '#E5ECFA' : '#FFFFFF', fg: on ? '#1A3170' : '#3B4557' }; }) : [],
+      } : { sel: null, note: 'Make an employee a Team Lead first (use "Make Team Lead" above), then assign their team members here.', chips: [] };
+    }
+    if (st.isUsers) {
+      const uf = s.uf;
+      st.users = this._tbl('users', [
+        { k: 'username', label: 'Username', strong: true },
+        { k: 'employeeName', label: 'Employee', get: u => u.employeeName || '—' },
+        { k: 'role', label: 'Role', cell: u => ({ plain: false, badge: u.role === 'Admin' ? { text: 'Admin', bg: '#E5ECFA', fg: '#1F3F8F' } : u.role === 'TL' ? { text: 'Team Lead', bg: '#EFEAFB', fg: '#5B3FA0' } : u.role === 'Employee' ? { text: 'Employee', bg: '#F1F3F7', fg: '#4A5568' } : { text: 'Viewer', bg: '#F1F3F7', fg: '#4A5568' } }) },
+        { k: 'active', label: 'Status', cell: u => ({ plain: false, badge: u.active ? { text: 'Active', bg: '#E3F3EA', fg: '#1D6B45' } : { text: 'Inactive', bg: '#F1F3F7', fg: '#6B7588' } }) },
+        { k: 'createdDate', label: 'Created', fmt: v => v ? fm(v.slice(0, 10)) : '—' },
+        { k: 'act', label: '', nosort: true, cell: u => ({ plain: false, actions: [
+          { label: 'Edit', color: '#1A3170', onClick: () => this.setState({ uf: { id: u.id, username: u.username, password: '', role: u.role, active: u.active, employeeName: u.employeeName || '', team: u.team || '' } }) },
+          { label: u.active ? 'Deactivate' : 'Activate', color: '#1A3170', onClick: () => this._toggleUser(u) },
+          { label: 'Delete', color: '#A2361F', onClick: () => this._delUser(u) },
+        ] }) },
+      ], s.users, { sort: { k: 'username', d: 1 } });
+      st.uf = { ...uf, title: uf.id ? 'Edit user' : 'Add user', passPh: uf.id ? 'Leave blank to keep current password' : 'Required', saveLabel: uf.id ? 'Save changes' : 'Add user', editing: !!uf.id, activeIcon: uf.active ? 'toggle_on' : 'toggle_off',
+        roleSel: this._sel(uf.role, e => { const v = e.target.value; this.setState(x => ({ uf: { ...x.uf, role: v } })); }, ROLE_OPTS, { ...SEL, height: 36 }) };
+    }
+    if (st.isList) {
+      const type = tab; const one = type === 'teams' ? 'team' : 'client'; const p = this._p(); const a = this._all();
+      const used = new Map((type === 'teams' ? a.teams : a.clients).map(x => [x.name, x.hours]));
+      const ed = s.listEdit && s.listEdit.type === type ? s.listEdit : null;
+      const known = new Set(s.cfg[type].map(x => x.name.toLowerCase()));
+      const unknown = (type === 'teams' ? p.opts.teams : p.opts.clients).filter(x => x !== 'Unassigned' && !known.has(x.toLowerCase()));
+      st.list = {
+        help: type === 'teams' ? 'Teams used for validation and the Team filter. Inactive teams stay in historical data but are flagged on new uploads.' : 'Clients used for validation and name normalization on import (case-insensitive match). Inactive clients stay in history.',
+        value: ed ? ed.name : s.newItem[type], placeholder: ed ? 'Rename ' + one : 'New ' + one + ' name',
+        onChange: e => { const v = e.target.value; ed ? this.setState({ listEdit: { ...ed, name: v } }) : this.setState(x => ({ newItem: { ...x.newItem, [type]: v } })); },
+        onKey: e => { if (e.key === 'Enter') ed ? this._listSaveEdit() : this._listAdd(type); },
+        onSave: () => ed ? this._listSaveEdit() : this._listAdd(type), saveLabel: ed ? 'Save name' : 'Add ' + one, editing: !!ed, onCancel: () => this.setState({ listEdit: null }),
+        hasUnknown: unknown.length > 0, unknownLabel: `Add ${unknown.length} ${type} found in data`, addUnknown: () => this._listAddMany(type, unknown),
+        table: this._tbl('list-' + type, [
+          { k: 'name', label: type === 'teams' ? 'Team' : 'Client', strong: true },
+          { k: 'active', label: 'Status', cell: x => ({ plain: false, badge: x.active ? { text: 'Active', bg: '#E3F3EA', fg: '#1D6B45' } : { text: 'Inactive', bg: '#F1F3F7', fg: '#6B7588' } }) },
+          { k: 'hours', label: 'Hours in Data', num: true, get: x => used.get(x.name) || 0 },
+          { k: 'act', label: '', nosort: true, cell: x => ({ plain: false, actions: [
+            { label: 'Edit', color: '#1A3170', onClick: () => this.setState({ listEdit: { type, id: x.id, name: x.name } }) },
+            { label: x.active ? 'Deactivate' : 'Activate', color: '#1A3170', onClick: () => this._listPatch(type, x.id, { active: !x.active }) },
+            { label: 'Delete', color: '#A2361F', onClick: () => this._listDel(type, x) },
+          ] }) },
+        ], s.cfg[type], { sort: { k: 'name', d: 1 }, empty: `No ${type} configured yet.` }),
+      };
+    }
+    if (st.isSP) {
+      const d = s.cfgD; const set = k => e => { const v = e.target.value; this.setState(x => ({ cfgD: { ...x.cfgD, [k]: v } })); };
+      st.spFields = [['hoursPerSP', 'Hours per Story Point', 'hours = 1 SP'], ['expectedSPPerWeek', 'Expected Story Points per Employee per Week', 'SP / week'], ['expectedHoursPerWeek', 'Expected Hours per Employee per Week', 'hours / week'], ['workingDays', 'Working Days per Week', 'days'],
+        ['below', '“Below Expected” when achievement is under', '%'], ['above', '“Above Expected” when achievement is over', '%'], ['highMeetingPct', 'Flag high meeting time above', '% of hours'], ['nonBillablePct', 'Flag non-billable time above', '% of hours']]
+        .map(([k, label, unit]) => ({ label, unit, value: d[k], onChange: set(k) }));
+      st.weekSel = this._sel(d.weekStartDay, set('weekStartDay'), ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((l, i) => ({ v: String(i), l })), { ...SEL, height: 36 });
+      st.dateSel = this._sel(d.dateOrder, set('dateOrder'), [{ v: 'DMY', l: 'Day / Month / Year' }, { v: 'MDY', l: 'Month / Day / Year' }], { ...SEL, height: 36 });
+      st.exclIcon = d.excludeLeaveFromSP ? 'toggle_on' : 'toggle_off';
+    }
+    if (st.isRules) {
+      const d = s.cfgD;
+      st.rules = [['leave', 'Leave / Holiday / Week Off'], ['clientMeeting', 'Client Meetings'], ['internalMeeting', 'Internal Meetings'], ['training', 'Training'], ['admin', 'Administration']]
+        .map(([k, label]) => ({ label, value: d.rules[k] || '', onChange: e => { const v = e.target.value; this.setState(x => ({ cfgD: { ...x.cfgD, rules: { ...x.cfgD.rules, [k]: v } } })); } }));
+    }
+    if (st.isData) {
+      const wm = new Map();
+      s.records.forEach(r => { const k = r.n.weekStart || '(no week)'; const w = wm.get(k) || { week: k, records: 0, hours: 0, emps: new Set(), uploads: new Set() }; w.records++; w.hours += r.n.hours || 0; w.emps.add(r.n.employee); w.uploads.add(r.uploadId); wm.set(k, w); });
+      const wrows = [...wm.values()].map(w => ({ ...w, empCount: w.emps.size, upCount: w.uploads.size, end: (this._p().weeks.find(x => x.start === w.week) || {}).end || '' }));
+      st.weeks = this._tbl('weeks', [
+        { k: 'week', label: 'Week Start', strong: true, fmt: v => v === '(no week)' ? v : fm(v) }, { k: 'end', label: 'Week End', fmt: v => v ? fm(v) : '—' },
+        { k: 'records', label: 'Records', num: true, fmt: v => nf(v, 0) }, { k: 'empCount', label: 'Employees', num: true, fmt: v => nf(v, 0) },
+        { k: 'hours', label: 'Hours', num: true, bold: true }, { k: 'upCount', label: 'Uploads', num: true, fmt: v => nf(v, 0) },
+        { k: 'act', label: '', nosort: true, cell: w => ({ plain: false, actions: [{ label: 'Delete week', color: '#A2361F', onClick: () => this._delWeek(w) }] }) },
+      ], wrows, { sort: { k: 'week', d: -1 }, empty: 'No data stored.' });
+      st.dataStats = [['Uploads', s.uploads.length], ['Records', s.records.length], ['Task merges', s.merges.length], ['Users', s.users.length], ['Total hours', nf(s.records.reduce((t, r) => t + (r.n.hours || 0), 0))]].map(([label, value]) => ({ label, value: typeof value === 'number' ? value.toLocaleString() : value }));
+    }
+    return { st };
+  }
+  /* ---------- Upload wizard ---------- */
+  _vmUpload() {
+    const u = this.state.up; if (!u) return { open: false };
+    const fm = TS().fmtDate; const si = { select: 1, mapping: 2, preview: 3 }[u.step];
+    const steps = ['Select file', 'Map columns', 'Preview & validate'].map((label, i) => ({ n: String(i + 1), label, bg: i + 1 <= si ? NAVY : '#E4E8EF', nfg: i + 1 <= si ? '#FFFFFF' : '#6B7588', fg: i + 1 === si ? '#18202E' : '#8A94A6' }));
+    const out = { open: true, steps, fileName: u.fileName ? u.fileName + (u.sheetName ? ' · sheet “' + u.sheetName + '”' : '') : 'Select an Excel or CSV file',
+      isSelect: u.step === 'select', isMapping: u.step === 'mapping', isPreview: u.step === 'preview', error: u.error || '',
+      dropBd: u.drag ? NAVY : '#C5CEDD', dropBg: u.drag ? '#EEF3FB' : '#FAFBFD', sampleWeek: 'week of ' + fm(this._sampleWeek()) };
+    if (u.step === 'mapping') {
+      const t = u.table; const miss = TS().missingRequired(u.map);
+      Object.assign(out, { hasMissing: miss.length > 0, missingText: miss.join(', '), contOp: miss.length ? '0.45' : '1', multiSheet: u.sheets && u.sheets.length > 1,
+        sheetSel: this._sel(u.sheetName, e => this._startMapping(u.fileName, e.target.value), (u.sheets || []).map(x => ({ v: x, l: x }))),
+        fields: TS().FIELDS.map(f => {
+          const idx = u.map[f.key]; const mapped = idx != null; let sample = '';
+          if (mapped) { const r = t.rows.find(r => r[idx] !== '' && r[idx] != null); sample = r ? 'e.g. ' + String(r[idx]).slice(0, 60) : '(empty column)'; }
+          return { label: f.label, req: f.required ? '*' : '', status: mapped ? (u.autoMap[f.key] === idx ? 'Auto-detected' : 'Mapped manually') : (f.required ? 'Not mapped' : 'Optional'),
+            stFg: mapped ? '#1D6B45' : (f.required ? '#A2361F' : '#8A94A6'), bg: (!mapped && f.required) ? '#FFF8F5' : '#FFFFFF', sample,
+            select: this._sel(mapped ? String(idx) : '', e => this._setMap(f.key, e.target.value), [{ v: '', l: '— Not mapped —' }, ...t.headers.map((h, i) => ({ v: String(i), l: h }))], { ...SEL, height: 32 }) };
+        }) });
+    }
+    if (u.step === 'preview' && u.res) {
+      const r = u.res, st = r.stats, CL = TS().CAT_LABEL;
+      const ICON = { warn: 'warning', info: 'info' };
+      Object.assign(out, {
+        stats: [['Rows', nf(st.rows, 0)], ['Employees', nf(st.employees, 0)], ['Clients', nf(st.clients, 0)], ['Date range', st.from ? sd(st.from) + ' – ' + fm(st.to) : '—'], ['Total hours', nf(st.totalHours)], ['Weeks', nf(st.weeks, 0)], ['Duplicates removed', nf(st.removed || 0, 0)]].map(([label, value]) => ({ label, value })),
+        issues: r.issues.map(i => ({ ...i, count: i.count.toLocaleString(), icon: ICON[i.tone], bg: i.tone === 'warn' ? '#FDF3E7' : '#EEF3FB', fg: i.tone === 'warn' ? '#9A5B12' : '#1F3F8F' })),
+        clean: r.issues.length === 0, hasUnknown: r.unknownClients.length + r.unknownTeams.length > 0, addIcon: u.addUnknown ? 'check_box' : 'check_box_outline_blank',
+        mappedText: `${Object.keys(u.map).length} of ${TS().FIELDS.length} fields mapped`,
+        submitOp: st.rows && !u.busy ? '1' : '0.45', submitLabel: u.busy ? 'Saving…' : 'Submit & Generate Dashboard',
+        preview: this._tbl('upPrev', [
+          { k: 'row', label: 'Row', get: n => n._row, muted: true }, { k: 'date', label: 'Date', get: n => n.date, fmt: (v, n) => v ? fm(v) : (n.rawDate || '—') },
+          { k: 'employee', label: 'Employee', get: n => n.employee, strong: true }, { k: 'team', label: 'Team', get: n => n.team }, { k: 'client', label: 'Client', get: n => n.client },
+          { k: 'taskType', label: 'Task Type', get: n => n.taskType }, { k: 'description', label: 'Description', get: n => n.description, maxw: '260px' },
+          { k: 'hours', label: 'Hours', num: true, get: n => n.hours, fmt: v => v == null ? 'missing' : isFinite(v) ? nf(v) : 'invalid' },
+          { k: 'billable', label: 'Billable', get: n => n.billable ? 'Yes' : 'No' }, { k: 'cat', label: 'Category', get: n => CL[n._cat] },
+          { k: 'flags', label: 'Warnings', cell: n => { const t = n.flags.join('; '); return { v: t || '—', color: t ? '#9A5B12' : '#A3ACBB', tip: t, maxw: '220px' }; } },
+        ], r.norm.slice(0, 30), { rowBg: n => n.flags.length ? '#FFFBF3' : '' }),
+      });
+    }
+    return out;
+  }
+  _sampleWeek() {
+    const w = this._p().weeks;
+    if (w.length) return TS().addDays(TS().weekStartOf(w[w.length - 1].start, 1), 7);
+    return TS().weekStartOf(TS().addDays(new Date().toISOString().slice(0, 10), -14), 1);
+  }
+  _sample() { try { const { buf, name } = TS().sampleFile(this._sampleWeek()); this._loadBuffer(buf, name); } catch (e) { this._up({ error: 'Sample generation failed: ' + e.message }); } }
+  _onFile(file) {
+    if (!file) return;
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) return this._up({ error: 'Unsupported file type. Use .xlsx, .xls or .csv.' });
+    file.arrayBuffer().then(buf => this._loadBuffer(buf, file.name)).catch(e => this._up({ error: 'Could not read file: ' + e.message }));
+  }
+  _loadBuffer(buf, name) {
+    try { this._wb = TS().readWorkbook(buf, name); this._startMapping(name, TS().pickSheet(this._wb)); }
+    catch (e) { this.setState({ up: { step: 'select', error: 'Could not read “' + name + '”: ' + e.message } }); }
+  }
+  _startMapping(name, sheet) {
+    const t = TS().sheetTable(this._wb, sheet);
+    if (!t.rows.length) return this.setState({ up: { step: 'select', error: `No data rows found in sheet “${sheet}” of ${name}.` } });
+    const map = TS().autoMap(t.headers); const miss = TS().missingRequired(map);
+    const up = { step: miss.length ? 'mapping' : 'preview', fileName: name, sheetName: sheet, sheets: this._wb.SheetNames, table: t, map, autoMap: { ...map }, addUnknown: true };
+    if (!miss.length) up.res = this._process(t, map);
+    this.setState({ up, pages: { ...this.state.pages, upPrev: 0 } });
+  }
+  _process(t, map) { return TS().processRows(t, map, this.state.cfg, this._sigs(), this._exact()); }
+  _exact() { this._p(); if (!this._exSet) this._exSet = new Set(this.state.records.map(r => TS().rawKey(r.raw))); return this._exSet; }
+  _sigs() { this._p(); if (!this._sigSet) this._sigSet = new Set(this.state.records.map(r => TS().sig(r.n))); return this._sigSet; }
+  _setMap(k, v) { const map = { ...this.state.up.map }; if (v === '') delete map[k]; else map[k] = +v; this._up({ map }); }
+  _mapContinue() {
+    const u = this.state.up; const miss = TS().missingRequired(u.map);
+    if (miss.length) return this._toast('Map required column(s): ' + miss.join(', '));
+    this._up({ step: 'preview', res: this._process(u.table, u.map) });
+  }
+  async _submit() {
+    const s = this.state, u = s.up; if (!u || !u.res || u.busy || !u.res.norm.length) return;
+    if (!u.res.stats.rows) return this._toast('Every row is an exact duplicate — nothing new to import');
+    this._up({ busy: true });
+    try {
+      const { upload, records } = TS().buildImport(u.table, u.map, u.res.norm, { fileName: u.fileName, sheetName: u.sheetName, user: s.user.username, cfg: s.cfg, issues: u.res.issues });
+      await TS().DB.putMany('timesheetRecords', records);
+      await TS().DB.put('uploads', upload);
+      let cfg = s.cfg;
+      if (u.addUnknown && (u.res.unknownClients.length || u.res.unknownTeams.length)) {
+        const mk = (list, names, pre) => list.concat(names.filter(n => !list.some(x => x.name.toLowerCase() === n.toLowerCase())).map((name, i) => ({ id: pre + Date.now().toString(36) + i, name, active: true })));
+        cfg = { ...cfg, clients: mk(cfg.clients, u.res.unknownClients, 'c'), teams: mk(cfg.teams, u.res.unknownTeams, 't') };
+        await TS().DB.put('settings', cfg);
+      }
+      const period = upload.weeks.length === 1 ? 'w:' + upload.weeks[0] : 'all';
+      const f = { ...F0, period };
+      this.setState(st => ({ records: st.records.concat(records), uploads: st.uploads.concat(upload), cfg, cfgD: this._cfgDraft(cfg), ver: st.ver + 1, up: null, view: 'dashboard', f, fd: { ...f }, pages: {} }));
+      const rm = u.res.stats.removed || 0;
+      this._toast(`Imported ${records.length.toLocaleString()} records (${nf(upload.totalHours)} h) from ${upload.fileName}${rm ? ` · ${rm} exact duplicate${rm === 1 ? '' : 's'} removed` : ''}`);
+    } catch (e) { this._up({ busy: false }); this._toast('Import failed: ' + (e.message || e)); }
+  }
+
+  /* ---------- Merge actions ---------- */
+  _vmMergeModal() {
+    const s = this.state; if (!s.mModal) return { open: false };
+    const a = this._all(); const ts = Object.keys(s.msel).map(k => a.tasks.find(t => t.key === k)).filter(Boolean);
+    const clients = [...new Set(ts.flatMap(t => t.clientList))];
+    return { open: true, count: ts.length, items: ts.map(t => ({ name: t.name, client: t.clientLabel, hours: nf(t.hours) })), name: s.mName,
+      total: nf(ts.reduce((x, t) => x + t.hours, 0)), sp: nf(ts.reduce((x, t) => x + t.sp, 0), 3), clients: clients.join(', ') };
+  }
+  _openMerge() {
+    const s = this.state; if (!this._isAdmin()) return;
+    const keys = Object.keys(s.msel); if (keys.length < 2) return this._toast('Select at least two tasks to merge');
+    const a = this._all(); const names = keys.map(k => (a.tasks.find(t => t.key === k) || {}).name).filter(Boolean).sort((x, y) => x.length - y.length);
+    this.setState({ mModal: true, mName: names[0] || '' });
+  }
+  async _doMerge() {
+    const s = this.state; const name = s.mName.trim(); const keys = Object.keys(s.msel);
+    if (!name) return this._toast('Enter a consolidated task name'); if (keys.length < 2) return;
+    const p = this._p();
+    const m = { mergeId: 'MG-' + Date.now().toString(36).toUpperCase(), sourceKeys: keys, originalTaskNames: keys.map(k => p.nameOf(k)), consolidatedTaskName: name, createdBy: s.user.username, createdDate: new Date().toISOString() };
+    await TS().DB.put('taskMerges', m);
+    this.setState(st => ({ merges: st.merges.concat(m), ver: st.ver + 1, msel: {}, mModal: false }));
+    this._toast(`Merged ${keys.length} tasks into “${name}”`);
+  }
+  async _undoMerge(id) {
+    if (!this._isAdmin()) return;
+    const s = this.state; if (s.merges.some(m => m.sourceKeys.includes('M:' + id))) return this._toast('This merge is part of a later merge — undo the later merge first.');
+    await TS().DB.del('taskMerges', id);
+    this.setState(st => ({ merges: st.merges.filter(m => m.mergeId !== id), ver: st.ver + 1, view: st.view === 'taskDetail' ? 'merge' : st.view }));
+    this._toast('Merge undone — original tasks restored');
+  }
+
+  _vm_login() {
+    const s = this.state;
+    return { isLogin: true, lu: s.lu, lp: s.lp, lerr: s.lerr, on: this.on, pwMode: s.pwMode, loginMode: !s.pwMode,
+      pwUser: s.pwUser, pwOld: s.pwOld, pwNew: s.pwNew, pwErr: s.pwErr, pwOk: s.pwOk };
+  }
+  async _changePw() {
+    const s = this.state; const name = s.pwUser.trim();
+    const u = s.users.find(x => x.username.toLowerCase() === name.toLowerCase());
+    if (!u) return this.setState({ pwErr: 'No account with that username.' });
+    if (u.passwordHash !== TS().hashPassword(u.id, s.pwOld)) return this.setState({ pwErr: 'Current password is incorrect.' });
+    if (!s.pwNew.trim()) return this.setState({ pwErr: 'Enter a new password.' });
+    const nu = { ...u, passwordHash: TS().hashPassword(u.id, s.pwNew) };
+    await TS().DB.put('users', nu);
+    this.setState(x => ({ users: x.users.map(y => y.id === u.id ? nu : y), pwOk: 'Password updated. You can sign in now.', pwOld: '', pwNew: '' }));
+  }
+  async _setWfRole(name, u, role) {
+    const s = this.state; const cfg = { ...s.cfg, workflow: { ...(s.cfg.workflow || {}), [name]: role } };
+    await TS().DB.put('settings', cfg); this.setState({ cfg, cfgD: this._cfgDraft(cfg) });
+    if (u) await this._putUser({ ...u, role }, role === 'TL' ? name + ' is now a Team Lead' : name + ' is now an Employee');
+  }
+  _uniqueUsername(base) {
+    const taken = new Set(this.state.users.map(u => u.username.toLowerCase())); let n = base, i = 2;
+    while (taken.has(n.toLowerCase())) n = base + i++;
+    return n;
+  }
+  async _createLogin(name, team, role) {
+    const { first, last } = splitName(name);
+    const username = this._uniqueUsername(first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user');
+    const id = 'u_' + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+    const u = { id, username, role: role || 'Employee', active: true, employeeName: name, team, createdDate: new Date().toISOString(), passwordHash: TS().hashPassword(id, last) };
+    await this._putUser(u, `Login created for ${name}: User ID "${username}", password "${last}"`);
+  }
+  async _resetPw(u, name) {
+    const { last } = splitName(name);
+    const nu = { ...u, passwordHash: TS().hashPassword(u.id, last) };
+    await this._putUser(nu, `Password for "${u.username}" reset to "${last}"`);
+  }
+  async _toggleAssign(u, name) {
+    const cur = u.assignedEmployees || []; const next = cur.includes(name) ? cur.filter(x => x !== name) : cur.concat(name);
+    await this._putUser({ ...u, assignedEmployees: next }, null);
+  }
+  _login() {
+    const s = this.state; const u = s.users.find(x => x.username.toLowerCase() === s.lu.trim().toLowerCase());
+    if (!u || u.passwordHash !== TS().hashPassword(u.id, s.lp)) return this.setState({ lerr: 'Invalid username or password.' });
+    if (!u.active) return this.setState({ lerr: 'This account is deactivated. Contact an administrator.' });
+    try { localStorage.setItem('tsm_session', u.id); } catch (e) {}
+    this.setState({ user: u, lu: '', lp: '', lerr: '', view: 'dashboard' });
+  }
+  _adminsOk(users) { return users.some(x => x.role === 'Admin' && x.active); }
+  async _putUser(u, msg) {
+    await TS().DB.put('users', u);
+    this.setState(s => { const users = s.users.some(x => x.id === u.id) ? s.users.map(x => x.id === u.id ? u : x) : s.users.concat(u); const me = s.user.id === u.id ? u : s.user; return { users, user: me, view: me.role === 'Admin' ? s.view : 'dashboard' }; });
+    this._toast(msg);
+  }
+  async _saveUser() {
+    const s = this.state, f = s.uf; const name = f.username.trim();
+    if (!name) return this._toast('Username is required');
+    if (s.users.some(u => u.username.toLowerCase() === name.toLowerCase() && u.id !== f.id)) return this._toast('That username already exists');
+    let u;
+    if (f.id) u = { ...s.users.find(x => x.id === f.id) };
+    else { if (!f.password) return this._toast('Password is required for new users'); u = { id: 'u_' + Date.now().toString(36), createdDate: new Date().toISOString() }; }
+    u.username = name; u.role = f.role; u.active = f.active; u.employeeName = f.employeeName || ''; u.team = f.team || '';
+    if (f.password) u.passwordHash = TS().hashPassword(u.id, f.password);
+    if (!this._adminsOk(s.users.filter(x => x.id !== u.id).concat(u))) return this._toast('At least one active Admin is required');
+    this.setState({ uf: { ...UF0 } });
+    await this._putUser(u, f.id ? 'User updated' : 'User added');
+  }
+  async _toggleUser(u) {
+    const n = { ...u, active: !u.active };
+    if (!this._adminsOk(this.state.users.map(x => x.id === u.id ? n : x))) return this._toast('At least one active Admin is required');
+    if (u.id === this.state.user.id && !n.active) return this._toast('You cannot deactivate your own account');
+    await this._putUser(n, n.active ? 'User activated' : 'User deactivated');
+  }
+  _delUser(u) {
+    if (u.id === this.state.user.id) return this._toast('You cannot delete your own account');
+    if (!this._adminsOk(this.state.users.filter(x => x.id !== u.id))) return this._toast('At least one active Admin is required');
+    this.setState({ confirm: { title: 'Delete user?', text: `“${u.username}” will no longer be able to sign in.`, label: 'Delete user', action: async () => { await TS().DB.del('users', u.id); this.setState(s => ({ users: s.users.filter(x => x.id !== u.id) })); this._toast('User deleted'); } } });
+  }
+
+  /* ---------- Teams / clients / config ---------- */
+  async _saveCfgObj(cfg, msg) {
+    await TS().DB.put('settings', cfg);
+    this.setState(s => ({ cfg, ver: s.ver + 1, cfgD: this._cfgDraft(cfg) }));
+    if (msg) this._toast(msg);
+  }
+  _listAdd(type) {
+    const s = this.state; const name = (s.newItem[type] || '').replace(/\s+/g, ' ').trim(); if (!name) return;
+    if (s.cfg[type].some(x => x.name.toLowerCase() === name.toLowerCase())) return this._toast('“' + name + '” already exists');
+    this.setState(x => ({ newItem: { ...x.newItem, [type]: '' } }));
+    this._saveCfgObj({ ...s.cfg, [type]: s.cfg[type].concat({ id: type[0] + Date.now().toString(36), name, active: true }) }, 'Added “' + name + '”');
+  }
+  _listAddMany(type, names) {
+    const s = this.state; const t = Date.now().toString(36);
+    this._saveCfgObj({ ...s.cfg, [type]: s.cfg[type].concat(names.map((name, i) => ({ id: type[0] + t + i, name, active: true }))) }, `Added ${names.length} ${type}`);
+  }
+  _listPatch(type, id, patch) { const s = this.state; this._saveCfgObj({ ...s.cfg, [type]: s.cfg[type].map(x => x.id === id ? { ...x, ...patch } : x) }, 'Saved'); }
+  _listSaveEdit() {
+    const s = this.state, e = s.listEdit; const name = (e.name || '').replace(/\s+/g, ' ').trim(); if (!name) return;
+    if (s.cfg[e.type].some(x => x.id !== e.id && x.name.toLowerCase() === name.toLowerCase())) return this._toast('“' + name + '” already exists');
+    this.setState({ listEdit: null }); this._listPatch(e.type, e.id, { name });
+  }
+  _listDel(type, x) {
+    this.setState({ confirm: { title: 'Delete “' + x.name + '”?', text: 'Removes it from the configuration. Historical timesheet records keep their original values.', label: 'Delete', action: () => { const s = this.state; this._saveCfgObj({ ...s.cfg, [type]: s.cfg[type].filter(y => y.id !== x.id) }, 'Deleted “' + x.name + '”'); } } });
+  }
+  _saveCfg() {
+    const s = this.state, d = s.cfgD; const n = k => Number(d[k]);
+    if (!(n('hoursPerSP') > 0)) return this._toast('Hours per Story Point must be greater than 0');
+    if (!(n('expectedSPPerWeek') >= 0) || !(n('expectedHoursPerWeek') > 0)) return this._toast('Expected values must be positive numbers');
+    if (!(n('workingDays') >= 1 && n('workingDays') <= 7)) return this._toast('Working days must be between 1 and 7');
+    if (!(n('below') < n('above'))) return this._toast('The “Below” threshold must be lower than the “Above” threshold');
+    this._saveCfgObj({ ...s.cfg, hoursPerSP: n('hoursPerSP'), expectedSPPerWeek: n('expectedSPPerWeek'), expectedHoursPerWeek: n('expectedHoursPerWeek'), workingDays: n('workingDays'),
+      thresholds: { below: n('below'), above: n('above') }, highMeetingPct: n('highMeetingPct') || 0, nonBillablePct: n('nonBillablePct') || 0,
+      weekStartDay: n('weekStartDay'), dateOrder: d.dateOrder, excludeLeaveFromSP: !!d.excludeLeaveFromSP }, 'Configuration saved — all analysis recalculated');
+  }
+  _saveRules() { const s = this.state; this._saveCfgObj({ ...s.cfg, rules: { ...s.cfgD.rules } }, 'Rules saved — records reclassified'); }
+  _clearAll() {
+    this.setState({ confirm: { title: 'Delete all timesheet data?', text: 'Removes every upload, record and task merge from this browser. Users and configuration are kept. This cannot be undone.', label: 'Delete everything', action: async () => {
+      await Promise.all(['timesheetRecords', 'uploads', 'taskMerges'].map(x => TS().DB.clear(x)));
+      this.setState(s => ({ records: [], uploads: [], merges: [], ver: s.ver + 1, f: { ...F0 }, fd: { ...F0 }, msel: {} })); this._toast('All timesheet data deleted');
+    } } });
+  }
+  _delWeek(w) {
+    if (!this._isAdmin()) return;
+    const label = w.week === '(no week)' ? 'records without a week' : 'week of ' + TS().fmtDate(w.week);
+    this.setState({ confirm: { title: 'Delete ' + label + '?', text: `Permanently removes ${w.records.toLocaleString()} records (${nf(w.hours)} h) for ${label}. Other weeks are not affected; upload totals are updated.`, label: 'Delete week', action: async () => {
+      const s = this.state; const match = r => (r.n.weekStart || '(no week)') === w.week;
+      const gone = s.records.filter(match); const keep = s.records.filter(r => !match(r));
+      await TS().DB.delMany('timesheetRecords', gone.map(r => r.recordId));
+      const uploads = [];
+      for (const u of s.uploads) {
+        if (!w.uploads.has(u.uploadId)) { uploads.push(u); continue; }
+        const rs = keep.filter(r => r.uploadId === u.uploadId);
+        if (!rs.length) { await TS().DB.del('uploads', u.uploadId); continue; }
+        const hrs = rs.reduce((t, r) => t + (r.n.hours || 0), 0); const lv = rs.reduce((t, r) => t + (r._cat === 'leave' ? r.n.hours || 0 : 0), 0);
+        const weeks = [...new Set(rs.map(r => r.n.weekStart).filter(Boolean))].sort(); const dates = rs.map(r => r.n.date).filter(Boolean).sort();
+        const nu = { ...u, recordCount: rs.length, totalHours: r4(hrs), totalStoryPoints: r4((hrs - (s.cfg.excludeLeaveFromSP ? lv : 0)) / (s.cfg.hoursPerSP || 8)), employeeCount: new Set(rs.map(r => r.n.employee)).size, weeks, weekStart: weeks[0] || dates[0] || '', weekEnd: dates[dates.length - 1] || '', deletedWeeks: (u.deletedWeeks || []).concat(w.week) };
+        await TS().DB.put('uploads', nu); uploads.push(nu);
+      }
+      this.setState(st => ({ records: keep, uploads, ver: st.ver + 1, f: { ...F0 }, fd: { ...F0 } }));
+      this._toast('Deleted ' + label);
+    } } });
+  }
+  _delUpload(u) {
+    this.setState({ confirm: { title: 'Delete upload?', text: `Permanently removes “${u.fileName}” (${u.recordCount.toLocaleString()} records, ${nf(u.totalHours)} h). Other uploads are not affected.`, label: 'Delete upload', action: async () => {
+      await TS().DB.delByUpload(u.uploadId); await TS().DB.del('uploads', u.uploadId);
+      this.setState(s => { const clr = s.f.uploadId === u.uploadId; return { uploads: s.uploads.filter(x => x.uploadId !== u.uploadId), records: s.records.filter(r => r.uploadId !== u.uploadId), ver: s.ver + 1, f: clr ? { ...s.f, uploadId: '' } : s.f, fd: clr ? { ...s.fd, uploadId: '' } : s.fd }; });
+      this._toast('Upload deleted');
+    } } });
+  }
+  /* ---------- Chart configs per view ---------- */
+  _chartCfgs() {
+    const s = this.state, v = s.view; if (!s.records.length) return {};
+    const out = {}; const CATS = TS().CATS; const p = this._p();
+    const tr = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+    const H = { unit: ' h' };
+    if (v === 'dashboard') {
+      const a = this._agg(s.f), m = s.trend;
+      out.dTrend = this._line(a.days.map(d => sd(d.date)), [{ label: m === 'hours' ? 'Hours' : m === 'sp' ? 'Story Points' : 'Employees', data: a.days.map(d => m === 'hours' ? r2(d.hours) : m === 'sp' ? r2(d.sp) : d.emps) }]);
+      out.dWeek = this._bar(a.weeks.map(w => 'Wk of ' + sd(w.start)), CATS.map(c => ({ label: c.label, data: a.weeks.map(w => r2(w.cats[c.key])), backgroundColor: c.color })).filter(d => d.data.some(x => x)), { stack: true, thick: 56, ...H });
+      const cz = CATS.filter(c => a.T.cats[c.key]);
+      out.dMix = this._donut(cz.map(c => c.label), cz.map(c => r2(a.T.cats[c.key])), cz.map(c => c.color));
+      const top = a.clients.slice(0, 10);
+      out.dClient = this._bar(top.map(c => c.name), [{ label: 'Hours', data: top.map(c => r2(c.hours)), backgroundColor: NAVY }], { h: true, ...H });
+    }
+    if (v === 'employees') {
+      const E = this._agg(s.f).emps, L = E.map(e => e.name); const U = this._U();
+      out.eHours = U.sp ? this._bar(L, [{ label: 'Story Points', data: E.map(e => r2(e.sp)), backgroundColor: NAVY }], { h: true }) : this._bar(L, [{ label: 'Hours', data: E.map(e => r2(e.hours)), backgroundColor: NAVY }], { h: true, ...H });
+      out.eSP = this._bar(L, [{ label: 'Actual SP', data: E.map(e => r2(e.sp)), backgroundColor: NAVY }, { label: 'Expected SP', data: E.map(e => r2(e.expSP)), backgroundColor: NAVY_L }], { h: true, thick: 11 });
+      out.eMix = this._bar(L, [
+        { label: 'Internal Meetings', data: E.map(e => r2(e.cats.internal_meeting)), backgroundColor: '#8BA3D4' },
+        { label: 'Client Meetings', data: E.map(e => r2(e.cats.client_meeting)), backgroundColor: TEAL },
+        { label: 'Project / Task Work', data: E.map(e => r2(e.cats.project)), backgroundColor: '#27418C' },
+        { label: 'Other (training, admin, leave, unclassified)', data: E.map(e => r2(e.hours - e.cats.internal_meeting - e.cats.client_meeting - e.cats.project)), backgroundColor: '#C9CED8' },
+      ], { h: true, stack: true, ...H });
+      out.eUtil = this._bar(L, [{ label: 'Actual Hours', data: E.map(e => r2(e.hours)), backgroundColor: NAVY }, { label: 'Expected Hours', data: E.map(e => r2(e.expHours)), backgroundColor: NAVY_L }], { h: true, thick: 11, ...H });
+    }
+    if (v === 'empDetail') {
+      const e = this._agg(s.f).emps.find(x => x.name === s.empSel);
+      if (e) {
+        const cl = [...e.clients.entries()].sort((x, y) => y[1] - x[1]);
+        out.edClient = this._donut(cl.map(c => c[0]), cl.map(c => r2(c[1])), cl.map((_, i) => pal(i)));
+        const tk = [...e.tasks.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10);
+        out.edTask = this._bar(tk.map(t => tr(p.nameOf(t[0]), 38)), [{ label: 'Hours', data: tk.map(t => r2(t[1])), backgroundColor: NAVY }], { h: true, ...H });
+        const days = [...e.days.entries()].sort((x, y) => x[0] < y[0] ? -1 : 1);
+        out.edDaily = this._bar(days.map(d => sd(d[0])), [{ label: 'Hours', data: days.map(d => r2(d[1])), backgroundColor: NAVY }], { thick: 36, ...H });
+      }
+    }
+    if (v === 'taskDetail') {
+      let f = s.f; let recs = this._recs(f).filter(r => r._task === s.taskSel);
+      if (!recs.length) recs = this._recs({ ...F0, period: 'all' }).filter(r => r._task === s.taskSel);
+      const dates = [...new Set(recs.map(r => r.n.date).filter(Boolean))].sort();
+      const em = [...new Set(recs.map(r => r.n.employee || '(Unknown)'))];
+      const grid = new Map(); recs.forEach(r => { const k = (r.n.employee || '(Unknown)') + '|' + r.n.date; grid.set(k, (grid.get(k) || 0) + (r.n.hours || 0)); });
+      out.tdDaily = this._bar(dates.map(sd), em.map((n, i) => ({ label: n, data: dates.map(d => r2(grid.get(n + '|' + d) || 0)), backgroundColor: pal(i) })), { stack: true, thick: 36, ...H });
+    }
+    if (v === 'clients') {
+      const a = this._agg(s.f), C = a.clients, L = C.map(c => c.name);
+      out.cHours = this._U().sp ? this._bar(L, [{ label: 'Story Points', data: C.map(c => r2(c.sp)), backgroundColor: NAVY }], { h: true }) : this._bar(L, [{ label: 'Hours', data: C.map(c => r2(c.hours)), backgroundColor: NAVY }], { h: true, ...H });
+      out.cSP = this._bar(L, [{ label: 'Story Points', data: C.map(c => r2(c.sp)), backgroundColor: TEAL }], { h: true });
+      const E = a.emps.map(e => e.name);
+      out.cEmp = this._bar(L, E.map((n, i) => ({ label: n, data: C.map(c => r2(c.emps.get(n) || 0)), backgroundColor: pal(i) })), { h: true, stack: true, ...H });
+      out.cTask = this._bar(L, [{ label: 'Tasks', data: C.map(c => c.taskCount), backgroundColor: NAVY }, { label: 'Employees', data: C.map(c => c.empCount), backgroundColor: NAVY_L }], { h: true, thick: 12 });
+    }
+    if (v === 'teams') {
+      const Tm = this._agg(s.f).teams, L = Tm.map(t => t.name);
+      const U = this._U();
+      out.tHours = this._bar(L, CATS.filter(c => !(U.sp && c.key === 'leave')).map(c => ({ label: c.label, data: Tm.map(t => r2(U.sp ? U.c(t.cats[c.key]) : t.cats[c.key])), backgroundColor: c.color })).filter(d => d.data.some(x => x)), U.sp ? { stack: true, thick: 48, unit: ' SP' } : { stack: true, thick: 48, ...H });
+      out.tSP = this._bar(L, [{ label: 'Actual SP', data: Tm.map(t => r2(t.sp)), backgroundColor: NAVY }, { label: 'Expected SP', data: Tm.map(t => r2(t.expSP)), backgroundColor: NAVY_L }], { thick: 28 });
+      out.tUtil = this._bar(L, [{ label: 'Utilization %', data: Tm.map(t => r2(t.util)), backgroundColor: NAVY }, { label: 'Productive Utilization %', data: Tm.map(t => r2(t.prodUtil)), backgroundColor: TEAL }], { pct: true, thick: 28 });
+    }
+    if (v === 'mix') {
+      const a = this._agg(s.f), E = a.emps, L = E.map(e => e.name);
+      const cz = CATS.filter(c => a.T.cats[c.key]);
+      out.mDonut = this._donut(cz.map(c => c.label), cz.map(c => r2(a.T.cats[c.key])), cz.map(c => c.color));
+      out.mEmp = this._bar(L, cz.map(c => ({ label: c.label, data: E.map(e => e.hours ? r2(e.cats[c.key] / e.hours * 100) : 0), backgroundColor: c.color })), { h: true, stack: true, pct: true });
+      out.bEmp = this._bar(L, [{ label: 'Billable', data: E.map(e => r2(e.billable)), backgroundColor: NAVY }, { label: 'Non-Billable', data: E.map(e => r2(e.nonBillable)), backgroundColor: '#C9CED8' }], { h: true, stack: true, ...H });
+      out.bClient = this._bar(a.clients.map(c => c.name), [{ label: 'Billable', data: a.clients.map(c => r2(c.billable)), backgroundColor: NAVY }, { label: 'Non-Billable', data: a.clients.map(c => r2(c.nonBillable)), backgroundColor: '#C9CED8' }], { h: true, stack: true, ...H });
+    }
+    if (v === 'compare') {
+      const d = this._cmpData();
+      if (d) {
+        const names = [...new Set(d.a.emps.map(e => e.name).concat(d.b.emps.map(e => e.name)))];
+        const ma = new Map(d.a.emps.map(e => [e.name, e.hours])), mb = new Map(d.b.emps.map(e => [e.name, e.hours]));
+        out.cmpEmp = this._bar(names, [{ label: 'Week of ' + sd(d.A), data: names.map(n => r2(ma.get(n) || 0)), backgroundColor: NAVY_L }, { label: 'Week of ' + sd(d.B), data: names.map(n => r2(mb.get(n) || 0)), backgroundColor: NAVY }], { h: true, thick: 11, ...H });
+      }
+    }
+    return out;
+  }
+
+  /* ---------- Downloads (.xlsx / .csv) ---------- */
+  _rawExport(recs, name, fmt) {
+    const p = this._p(), CL = TS().CAT_LABEL;
+    const rows = recs.map(r => {
+      const o = { 'Record ID': r.recordId, 'Upload ID': r.uploadId, 'Source Row': r.rowNumber };
+      Object.keys(r.raw).forEach(h => { o[h] = r.raw[h]; });
+      return Object.assign(o, { '» Date': r.n.date, '» Week Start': r.n.weekStart, '» Employee': r.n.employee, '» Team': r.n.team, '» Client': r.n.client, '» Hours': r.n.hours,
+        '» Billable': r.n.billable ? 'Yes' : 'No', '» Category': CL[r._cat], '» Ticket': r.n.ticket, '» Consolidated Task': p.nameOf(r._task), '» Warnings': (r.n.flags || []).join('; ') });
+    });
+    TS().exportRows(rows, name, fmt, 'Raw Data');
+  }
+  _dlUpload(u) {
+    const rows = this.state.records.filter(r => r.uploadId === u.uploadId).sort((a, b) => a.rowNumber - b.rowNumber).map(r => r.raw);
+    TS().exportRows(rows, u.fileName.replace(/\.[^.]+$/, '') + '_' + u.uploadId, 'xlsx', 'Timesheet', u.headers);
+  }
+  _dl(kind, fmt) {
+    const s = this.state, a = this._agg(s.f), p = this._p(), X = TS().exportRows;
+    const slug = (this._periodLabel(s.f).split('·')[1] || s.f.period || 'all').trim().replace(/[^A-Za-z0-9]+/g, '_');
+    const fn = n => `Timesheet_${n}_${slug}`;
+    if (kind === 'emp') return X(a.emps.map(e => ({ Employee: e.name, 'Emp ID': e.empId, Team: e.team, 'Internal Meetings': r4(e.cats.internal_meeting), 'Client Meetings': r4(e.cats.client_meeting), 'Project Hours': r4(e.cats.project), 'Total Hours': r4(e.hours), 'Story Points': r4(e.sp), 'Expected SP': r4(e.expSP), 'Achievement %': r2(e.ach), Status: STATUS[e.status].text, 'Utilization %': r2(e.util) })), fn('Employee_Report'), fmt, 'Employee Report');
+    if (kind === 'task') {
+      const { rows, emps } = this._taskRows();
+      const data = rows.map(t => { const o = { Task: t.name, Client: t.clientLabel }; emps.forEach(n => { o[n] = r4(t.perEmp.get(n) || 0); }); o['Total Hours'] = r4(t.hours); o['Story Points'] = r4(t.sp); return o; });
+      return X(data, fn('Task_Report'), fmt, 'Task Report', ['Task', 'Client', ...emps, 'Total Hours', 'Story Points']);
+    }
+    if (kind === 'client') return X(a.clients.map(c => ({ Client: c.name, Employees: c.empCount, Tasks: c.taskCount, Hours: r4(c.hours), 'Story Points': r4(c.sp), 'Billable Hours': r4(c.billable), 'Non-Billable Hours': r4(c.nonBillable), 'Internal Meeting Hours': r4(c.cats.internal_meeting), 'Client Meeting Hours': r4(c.cats.client_meeting), 'Project Hours': r4(c.cats.project) })), fn('Client_Report'), fmt, 'Client Report');
+    if (kind === 'team') return X(a.teams.map(t => ({ Team: t.name, Employees: t.emps, 'Total Hours': r4(t.hours), 'Story Points': r4(t.sp), 'Expected SP': r4(t.expSP), 'Achievement %': r2(t.ach), Status: STATUS[t.status].text, 'Meeting Hours': r4(t.meetings), 'Project Hours': r4(t.project), 'Utilization %': r2(t.util), 'Productive Utilization %': r2(t.prodUtil) })), fn('Team_Report'), fmt, 'Team Report');
+    if (kind === 'mix') {
+      const T = a.T;
+      const rows = TS().CATS.map(c => ({ Section: 'Work Mix', Name: c.label, Hours: r4(T.cats[c.key]), '% of Total': T.hours ? r2(T.cats[c.key] / T.hours * 100) : 0 }))
+        .concat(a.emps.map(e => ({ Section: 'Billable by Employee', Name: e.name, Hours: r4(e.hours), 'Billable Hours': r4(e.billable), 'Non-Billable Hours': r4(e.nonBillable), '% of Total': e.hours ? r2(e.billable / e.hours * 100) : 0 })))
+        .concat(a.clients.map(c => ({ Section: 'Billable by Client', Name: c.name, Hours: r4(c.hours), 'Billable Hours': r4(c.billable), 'Non-Billable Hours': r4(c.nonBillable), '% of Total': c.hours ? r2(c.billable / c.hours * 100) : 0 })))
+        .concat(a.tasks.map(t => ({ Section: 'Billable by Task', Name: t.name, Client: t.clientLabel, Hours: r4(t.hours), 'Billable Hours': r4(t.billable), 'Non-Billable Hours': r4(t.hours - t.billable), '% of Total': t.hours ? r2(t.billable / t.hours * 100) : 0 })));
+      return X(rows, fn('Work_Mix_Billable'), fmt, 'Work Mix', ['Section', 'Name', 'Client', 'Hours', 'Billable Hours', 'Non-Billable Hours', '% of Total']);
+    }
+    if (kind === 'raw') return this._rawExport(this._detRows(), fn('Detailed_Raw_Data'), fmt);
+    if (kind === 'ed') return this._rawExport(this._recs(s.f).filter(r => (r.n.employee || '(Unknown)') === s.empSel), fn('Employee_' + String(s.empSel).replace(/\W+/g, '_')), fmt);
+    if (kind === 'td') { let recs = this._recs(s.f).filter(r => r._task === s.taskSel); if (!recs.length) recs = this._recs({ ...F0, period: 'all' }).filter(r => r._task === s.taskSel); return this._rawExport(recs, fn('Task_' + p.nameOf(s.taskSel).slice(0, 40).replace(/\W+/g, '_')), fmt); }
+    if (kind === 'cmp') {
+      this._vm_compare(); const c = this._cmpRows; if (!c) return this._toast('Need at least two weeks to compare');
+      const row = (Section, Name, prev, cur, Client) => ({ Section, Name, Client: Client || '', Previous: r4(prev), Current: r4(cur), Change: r4(cur - prev), 'Change %': prev ? r2((cur - prev) / prev * 100) : '' });
+      const rows = c.M.map(m => row('Metric', m.metric, m.prev, m.cur)).concat(c.er.map(r => row('Employee hours', r.name, r.prev, r.cur)), c.cr.map(r => row('Client hours', r.name, r.prev, r.cur)), c.tr.map(r => row('Task hours', r.name, r.prev, r.cur, r.client)));
+      return X(rows, `Timesheet_Comparison_${c.A}_vs_${c.B}`, fmt, 'Week over Week');
+    }
+  }
+}
+</script>
+</body>
+</html>
