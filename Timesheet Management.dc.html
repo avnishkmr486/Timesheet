@@ -201,26 +201,19 @@ input,select,textarea,button{font-family:inherit}
       <!-- ================= DASHBOARD ================= -->
       <sc-if value="{{ v.dashboard }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column;gap:16px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-            <sc-for list="{{ dash.kpiMain }}" as="k" hint-placeholder-count="4">
-              <div title="{{ k.tip }}" style="background:{{ k.bg }};border:1px solid {{ k.bd }};border-radius:12px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span style="font-size:11.5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:{{ k.fg }}">{{ k.label }}</span><span style="font-family:'Material Symbols Outlined';font-size:16px;line-height:1;color:#A3ACBB">info</span></div>
-                <div style="font-size:30px;font-weight:600;letter-spacing:-0.01em;color:#101D3B;font-variant-numeric:tabular-nums">{{ k.value }}</div>
-                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5B6678;min-height:20px">
-                  <sc-if value="{{ k.badge }}"><span style="padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ k.badge.bg }};color:{{ k.badge.fg }}">{{ k.badge.text }}</span></sc-if>
-                  <span>{{ k.sub }}</span>
+          <div style="overflow-x:auto;padding-bottom:2px">
+            <div style="display:grid;grid-template-columns:repeat(11,minmax(112px,1fr));gap:10px">
+              <sc-for list="{{ dash.kpi }}" as="k" hint-placeholder-count="11">
+                <div title="{{ k.tip }}" style="background:{{ k.bg }};border:1px solid {{ k.bd }};border-radius:12px;padding:12px 12px;display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <div style="font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:{{ k.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.label }}</div>
+                  <div style="font-size:19px;font-weight:600;color:#101D3B;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.value }}</div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:#5B6678;min-height:14px;white-space:nowrap;overflow:hidden">
+                    <sc-if value="{{ k.badge }}"><span style="padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;background:{{ k.badge.bg }};color:{{ k.badge.fg }};flex:none">{{ k.badge.text }}</span></sc-if>
+                    <span style="overflow:hidden;text-overflow:ellipsis">{{ k.sub }}</span>
+                  </div>
                 </div>
-              </div>
-            </sc-for>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:10px">
-            <sc-for list="{{ dash.kpiSub }}" as="k" hint-placeholder-count="12">
-              <div title="{{ k.tip }}" style="background:{{ k.bg }};border:1px solid {{ k.bd }};border-radius:12px;padding:13px 15px;display:flex;flex-direction:column;gap:3px">
-                <div style="font-size:12px;color:{{ k.fg }};font-weight:600">{{ k.label }}</div>
-                <div style="font-size:20px;font-weight:600;color:#18202E;font-variant-numeric:tabular-nums">{{ k.value }}</div>
-                <div style="font-size:11.5px;color:#4A5568;min-height:14px">{{ k.sub }}</div>
-              </div>
-            </sc-for>
+              </sc-for>
+            </div>
           </div>
           <div style="background:#132250;border-radius:14px;padding:22px 24px;color:#FFFFFF;display:flex;flex-direction:column;gap:14px">
             <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
@@ -1076,28 +1069,28 @@ class Component extends DCLogic {
     const s = this.state, cfg = s.cfg, a = this._agg(s.f), T = a.T;
     const pfF = this._prevF(s.f); const prev = pfF ? this._agg(pfF) : null;
     const share = v => T.hours ? pf(v / T.hours * 100) + ' of hours' : '';
-    const kpiMain = [
-      { label: 'Total Hours', value: nf(T.hours), sub: `${T.records.toLocaleString()} entries · ${T.weekCount} week${T.weekCount === 1 ? '' : 's'}`, tip: 'Sum of all hours logged in the selected period.', badge: null },
-      { label: 'Story Points', value: nf(T.sp), sub: `${cfg.hoursPerSP} h = 1 SP${cfg.excludeLeaveFromSP ? ' · leave excluded' : ''}`, tip: 'Story Points = (Total Hours − Leave Hours) ÷ Hours per Story Point', badge: null },
-      { label: 'Expected Story Points', value: nf(T.expSP), sub: `${cfg.expectedSPPerWeek} SP per employee per week`, tip: 'Expected SP = Σ over employees of (Expected SP per week × weeks with entries)', badge: null },
-      { label: 'SP Achievement', value: pf(T.ach), sub: `${nf(T.sp)} of ${nf(T.expSP)} SP`, tip: 'Achievement % = Actual Story Points ÷ Expected Story Points × 100', badge: STATUS[T.status] },
-    ];
-    const kpiSub = [
-      { label: 'Productive Utilization', value: pf(T.prodUtil), sub: 'Project hours ÷ available hours', tip: 'Productive Utilization % = Project/Task Hours ÷ Available Working Hours × 100\nAvailable Working Hours = Expected Weekly Hours × Weeks × Employees − Leave Hours' },
-      { label: 'Total Employees', value: nf(T.empCount, 0), sub: 'in selected period', tip: 'Distinct employees with at least one entry.' },
+    /* Roster = distinct employees seen under the same team/client/etc. filters across ALL periods,
+     * so "not filled" reflects people who normally report time but have no entry in this selection. */
+    const rosterA = s.f.period === 'all' ? a : this._agg({ ...s.f, period: 'all' });
+    const curNames = new Set(a.emps.map(e => e.name));
+    const notFilled = rosterA.emps.filter(e => !curNames.has(e.name));
+    const kpi = [
+      { label: 'Total Hours', value: nf(T.hours), sub: `${T.records.toLocaleString()} entries · ${T.weekCount} week${T.weekCount === 1 ? '' : 's'}`, tip: 'Sum of all hours logged in the selected period.' },
+      { label: 'Story Points (Actual / Expected)', value: `${nf(T.sp)} / ${nf(T.expSP)}`, sub: `${cfg.hoursPerSP} h = 1 SP${cfg.excludeLeaveFromSP ? ' · leave excluded' : ''}`, tip: 'Actual = (Total Hours − Leave Hours) ÷ Hours per Story Point.\nExpected = Σ over employees of (Expected SP per week × weeks with entries).' },
+      { label: 'SP Achievement %', value: pf(T.ach), sub: `${nf(T.sp)} of ${nf(T.expSP)} SP`, tip: 'Achievement % = Actual Story Points ÷ Expected Story Points × 100', badge: STATUS[T.status] },
+      { label: 'Productive Utilization %', value: pf(T.prodUtil), sub: 'project ÷ available hours', tip: 'Productive Utilization % = Project/Task Hours ÷ Available Working Hours × 100\nAvailable Working Hours = Expected Weekly Hours × Weeks × Employees − Leave Hours' },
+      { label: 'Total Active Employees', value: nf(T.empCount, 0), sub: 'in selected period', tip: 'Distinct employees with at least one entry.' },
       { label: 'Project / Task Hours', value: nf(T.cats.project), sub: share(T.cats.project), tip: 'Productive work — excludes meetings, training, admin, leave and unclassified.' },
-      { label: 'Internal Meeting Hours', value: nf(T.cats.internal_meeting), sub: share(T.cats.internal_meeting), tip: 'All internal meetings consolidated.' },
       { label: 'Client Meeting Hours', value: nf(T.cats.client_meeting), sub: share(T.cats.client_meeting), tip: 'All client meetings consolidated.' },
-      { label: 'Total Hours', value: nf(T.nonBillable), sub: pf(100 - T.billPct || 0) + ' non-billable', tip: 'Hours where Is Billable is No or blank.' },
-      { label: 'Avg Hours / Employee', value: nf(T.avgHours, 1), sub: '', tip: 'Total Hours ÷ Total Employees' },
-      { label: 'Avg SP / Employee', value: nf(T.avgSP), sub: '', tip: 'Story Points ÷ Total Employees' },
+      { label: 'Internal Meeting Hours', value: nf(T.cats.internal_meeting), sub: share(T.cats.internal_meeting), tip: 'All internal meetings consolidated.' },
+      { label: 'Avg Hours / Employee', value: nf(T.avgHours, 1), sub: 'hours ÷ active employees', tip: 'Total Hours ÷ Total Employees' },
       { label: 'Leave / Holiday Hours', value: nf(T.cats.leave), sub: 'not counted as productive', tip: 'Shown separately; excluded from productive utilization.' },
+      { label: 'Employee Not Filled Timesheet', value: nf(notFilled.length, 0), sub: notFilled.length ? notFilled.slice(0, 3).map(e => e.name).join(', ') + (notFilled.length > 3 ? '…' : '') : 'all caught up', tip: 'Employees with entries in other periods but none in the selected period (same team/client/etc. filters).' },
     ];
     const pc = v => T.hours ? nf(v / T.hours * 100, 1) + '%' : '0%';
     const PAST = [['#E8EEFB', '#D3DEF6', '#2C4A94'], ['#E3F4EC', '#CBE8DA', '#1D6B45'], ['#FDEEE3', '#F6DAC6', '#9A4F1C'], ['#EFEAFB', '#DDD3F4', '#5B3FA0'], ['#FBF4DC', '#F1E4B5', '#7A5A0E'], ['#FBE8EE', '#F3D0DC', '#9A2E55'], ['#E0F3F4', '#C4E6E8', '#1C6B70']];
     const paint = (k, i) => { const c = PAST[i % PAST.length]; return { ...k, bg: c[0], bd: c[1], fg: c[2] }; };
-    kpiMain.forEach((k, i) => Object.assign(k, paint(k, i)));
-    kpiSub.forEach((k, i) => Object.assign(k, paint(k, i + 4)));
+    kpi.forEach((k, i) => Object.assign(k, paint(k, i)));
     const topE = a.emps[0], topC = a.clients.find(c => !TS().isInternal(c.name)), topT = a.tasks.find(t => !t.key.startsWith('C:'));
     const nB = a.emps.filter(e => e.status === 'below').length, nA = a.emps.filter(e => e.status === 'above').length;
     const aiPoints = T.records ? [
@@ -1126,7 +1119,7 @@ class Component extends DCLogic {
     }
     const ins = TS().insights(a, cfg, prev).map(i => ({ ...i, bg: (TONE[i.tone] || TONE.info).bg, fg: (TONE[i.tone] || TONE.info).fg, onClick: () => i.taskKey ? this._openTask(i.taskKey) : this._go(i.view === 'mix' ? 'employees' : (i.view || 'dashboard')) }));
     return { dash: {
-      period: this._periodLabel(s.f), summary, aiPoints, kpiMain, kpiSub, insights: ins, noInsights: !ins.length,
+      period: this._periodLabel(s.f), summary, aiPoints, kpi, insights: ins, noInsights: !ins.length,
       reconText: reconOk ? `Reconciled — task and employee totals equal ${nf(rc.source)} source hours` : `Reconciliation warning: tasks ${nf(rc.taskSum)} h / employees ${nf(rc.empSum)} h vs source ${nf(rc.source)} h`,
       reconTip: 'Sum of consolidated task hours and sum of employee hours are compared against the imported source hours for the same selection.',
       reconBg: reconOk ? 'rgba(143,209,176,0.16)' : '#FBE9E4', reconFg: reconOk ? '#BFE7D2' : '#A2361F', reconIcon: reconOk ? 'verified' : 'warning',
